@@ -1,0 +1,37 @@
+{
+  "name": "datdot-ui-highlight",
+  "version": "1.0.0",
+  "description": "code snippet",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "budo demo/demo.js:bundle.js --open --live",
+    "build": "browserify demo/demo.js -o bundle.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fionataeyang/datdot-ui-highlight.git"
+  },
+  "keywords": [
+    "highlight.js",
+    "code",
+    "snppinet",
+    "component",
+    "widget"
+  ],
+  "author": "fionataeyang",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/fionataeyang/datdot-ui-highlight/issues"
+  },
+  "homepage": "https://github.com/fionataeyang/datdot-ui-highlight#readme",
+  "devDependencies": {
+    "browserify": "^17.0.0",
+    "budo": "^11.6.4"
+  },
+  "dependencies": {
+    "bel": "^6.0.0",
+    "csjs-inject": "^1.0.1",
+    "highlight.js": "^10.7.2"
+  }
+}

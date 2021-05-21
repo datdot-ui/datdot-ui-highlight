@@ -1,0 +1,11 @@
+{
+    "fontFamily": "Monospace, Segoe UI Mono, Lucida Console, Cascadia Mono, Courier New, ui-monospace, Liberation Mono, Menlo, Monaco, Consolas, ",
+    "fontSize": "1.4rem",
+    "fontWeight": "var(--font-light)",
+    "lineHeight": "23px",
+    "padding": "1.8rem",
+    "borderRadius": "12px",
+    "borderWidth": "8px",
+    "borderColor": "hsl(38, 100%, 53%)",
+    "borderStyle": "dotted"
+}
