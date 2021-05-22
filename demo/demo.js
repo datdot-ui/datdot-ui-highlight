@@ -1,11 +1,15 @@
 const bel = require('bel')
 const csjs = require('csjs-inject')
+const path = require('path')
+const filename = path.basename(__filename)
+const domlog = require('ui-domlog')
 const snippet = require('..')
-const hljs = require('highlight.js')
+const title = require('datdot-ui-title')
 const theme = require('./theme.json')
 const main_highlight = require('./main_highlight.json')
 
 function demoComponent() {
+    let recipients = []
     const list = Object.keys(theme)
     const selector = bel`<select class=${css.select}></select>`
     list.forEach( name => {
@@ -16,23 +20,35 @@ function demoComponent() {
     selector.onchange = handleColorChange
 
     let style = theme['shades-of-purple']
-    const html_code =  hljs.highlightAuto('<span>Hello World!</span>').value
-    const js_code = hljs.highlightAuto(
-`const name = 'John Doe'" +
-function greeting(name) {" +
+    const htmlCode =  '<span>Hello World!</span>'
+    const jsCode = `const name = "John Doe"
+let age = "33"
+function greeting (name) {
     return console.log(\`Hello \${name}\`)
-}`).value
+}
+function person (name, age, job) {
+    return {id, name, age, job}
+}`
+    const cssCode = `body {
+    font-family: Arial, sans-serif;
+    height: 100%;
+}`
         
     const content = bel`
     <div class=${css.content}>
-        <label>Color:</label> ${selector}
-        <div>
-            <h2>HTML</h2>
-            ${snippet({content: html_code, type: 'xml'})}
-            
-            <h2>Javascript</h2>
-            ${snippet({content: js_code, type: 'javascript'})}
-        </div>
+        <header><label>Color:</label> ${selector}</header>
+        <section>
+            ${title({page: 'demo', name: 'html', content: 'XML'})}
+            ${snippet( {content: htmlCode, lang: 'xml'}, protocol('html') )}
+        </section>
+        <section>
+            ${title({page: 'demo', name: 'javascript', content: 'Javascript', theme: {color: 'hsl(212, 100%, 50%)'}})}
+            ${snippet( {content: jsCode, lang: 'javascript', theme: main_highlight }, protocol('javascript') )}
+        </section>
+        <section>
+            ${title( {page: 'demo', name: 'css', content: 'CSS', theme: {color: 'hsl(323,100%, 50%)'} })}
+            ${snippet( {content: cssCode, lang: 'css', theme: main_highlight }, protocol('css') )}
+        </section>
     </div>
     `
     injectStyle(style)
@@ -54,32 +70,75 @@ function greeting(name) {" +
         `
         return container
     }
-}
 
-function handleColorChange(e) {
-    return injectStyle(theme[e.target.value])
-}
+    /*************************
+    * ------ Actions -------
+    *************************/
+    function handleColorChange(e) {
+        return injectStyle(theme[e.target.value])
+    }
 
-function injectStyle(style) {
-    const head = document.head || document.getElementsByTagName('head')[0]
-    head.insertAdjacentHTML("beforeend", `<style>${style}</style>`)
+    function injectStyle(style) {
+        const head = document.head || document.getElementsByTagName('head')[0]
+        head.insertAdjacentHTML("beforeend", `<style>${style}</style>`)
+    }
+
+    /*************************
+    * ------ Receivers -------
+    *************************/
+    function receive (message) {
+        const { page, from, flow, type, body } = message
+        showLog(message)
+        if (type === 'init') return showLog({page, from, flow, type: 'ready', body, filename, line: 92})
+    }
+
+    /*************************
+    * ------ Protocols -------
+    *************************/
+    // original protocol for all use
+    function protocol (name) {
+        return send => {
+            recipients[name] = send
+            return receive
+        }
+    }
+
+    /*********************************
+    * ------ Promise() Element -------
+    *********************************/
+    // keep the scroll on bottom when the log displayed on the terminal
+    function showLog (message) { 
+        sendMessage(message)
+        .then( log => {
+            terminal.append(log)
+            terminal.scrollTop = terminal.scrollHeight
+        }
+    )}
+
+    async function sendMessage (message) {
+        return await new Promise( (resolve, reject) => {
+            if (message === undefined) reject('no message import')
+            const log = domlog(message)
+            return resolve(log)
+        }).catch( err => { throw new Error(err) } )
+    }
 }
 
 const css = csjs`
 :root {
-    --font-size-primary: 1.4rem;
+    --font-primary: 1.4rem;
     --font-light: 100;
     --font-normal: 300;
     --font-bold: 600;
-    --highlight-font-family: ${main_highlight.fontFamily ? main_highlight.fontFamily : 'Arial, Helvetica, sans-serif'};
-    --highlight-font-size: ${main_highlight.fontSize ? main_highlight.fontSize : 'var(--font-size-primary)'};
-    --highlight-padding: ${main_highlight.padding ? main_highlight.padding : '1.2rem 1.6rem'};
-    --highlight-radius: ${main_highlight.borderRadius ? main_highlight.borderRadius : '8px'};
-    --highlight-border-width: ${main_highlight.borderWidth ? main_highlight.borderWidth : '2px'};
-    --highlight-border-color: ${main_highlight.borderColor ? main_highlight.borderColor : 'hsl(0, 0%, 0%)'};
-    --highlight-style: ${main_highlight.borderStyle ? main_highlight.borderStyle : 'solid'};
-    --highlight-line-height: ${main_highlight.lineHeight ? main_highlight.lineHeight : '25px'};
-    --highlight-font-weight: ${main_highlight.fontWeight ? main_highlight.fontWeight : 'var(--font-normal)'};
+    --highlight-font-family: Segoe UI Mono, Monospace, Cascadia Mono, Courier New, ui-monospace, Liberation Mono, Menlo, Monaco, Consolas;
+    --highlight-font-size: var(--font-size-primary);
+    --highlight-padding: 1.2rem 1.6rem;
+    --highlight-radius: 12px;
+    --highlight-border-width: 2px;
+    --highlight-border-color: hsl(0, 0%, 0%);
+    --highlight-border-style: solid;
+    --highlight-line-height: 1.8;
+    --highlight-font-weight: var(--font-normal);
 }
 html {
     box-sizing: border-box;
@@ -118,6 +177,9 @@ body {
 .select {
     font-size: 1.6rem;
     padding: 4px 8px;
+}
+header {
+    padding-bottom: 20px;
 }
 `
 

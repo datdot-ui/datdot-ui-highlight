@@ -1,6 +1,6 @@
 {
   "name": "datdot-ui-highlight",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "code snippet",
   "main": "src/index.js",
   "scripts": {
@@ -32,6 +32,8 @@
   "dependencies": {
     "bel": "^6.0.0",
     "csjs-inject": "^1.0.1",
-    "highlight.js": "^10.7.2"
+    "datdot-ui-title": "github:fionataeyang/datdot-ui-title",
+    "highlight.js": "^10.7.2",
+    "ui-domlog": "github:fionataeyang/ui-domlog"
   }
 }

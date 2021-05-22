@@ -1,11 +1,12 @@
 {
-    "fontFamily": "Monospace, Segoe UI Mono, Lucida Console, Cascadia Mono, Courier New, ui-monospace, Liberation Mono, Menlo, Monaco, Consolas, ",
-    "fontSize": "1.4rem",
+    "fontFamily": "var(--highlight-font-family)",
+    "fontSize": "var(--highlight-font-size)",
     "fontWeight": "var(--font-light)",
-    "lineHeight": "23px",
-    "padding": "1.8rem",
-    "borderRadius": "12px",
-    "borderWidth": "8px",
-    "borderColor": "hsl(38, 100%, 53%)",
-    "borderStyle": "dotted"
+    "lineHeight": "var(--highlight-line-height)",
+    "padding": "var(--highlight-padding)",
+    "borderRadius": "var(--highlight-radius)",
+    "borderWidth": "3px",
+    "borderStyle": "dotted",
+    "borderColor": "hsl(29, 100%, 50%)",
+    "margin": "0"
 }

@@ -1,12 +1,17 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+(function (__filename){(function (){
 const bel = require('bel')
 const csjs = require('csjs-inject')
+const path = require('path')
+const filename = path.basename(__filename)
+const domlog = require('ui-domlog')
 const snippet = require('..')
-const hljs = require('highlight.js')
+const title = require('datdot-ui-title')
 const theme = require('./theme.json')
 const main_highlight = require('./main_highlight.json')
 
 function demoComponent() {
+    let recipients = []
     const list = Object.keys(theme)
     const selector = bel`<select class=${css.select}></select>`
     list.forEach( name => {
@@ -17,23 +22,35 @@ function demoComponent() {
     selector.onchange = handleColorChange
 
     let style = theme['shades-of-purple']
-    const html_code =  hljs.highlightAuto('<span>Hello World!</span>').value
-    const js_code = hljs.highlightAuto(
-`const name = 'John Doe'" +
-function greeting(name) {" +
+    const htmlCode =  '<span>Hello World!</span>'
+    const jsCode = `const name = "John Doe"
+let age = "33"
+function greeting (name) {
     return console.log(\`Hello \${name}\`)
-}`).value
+}
+function person (name, age, job) {
+    return {id, name, age, job}
+}`
+    const cssCode = `body {
+    font-family: Arial, sans-serif;
+    height: 100%;
+}`
         
     const content = bel`
     <div class=${css.content}>
-        <label>Color:</label> ${selector}
-        <div>
-            <h2>HTML</h2>
-            ${snippet({content: html_code, type: 'xml'})}
-            
-            <h2>Javascript</h2>
-            ${snippet({content: js_code, type: 'javascript'})}
-        </div>
+        <header><label>Color:</label> ${selector}</header>
+        <section>
+            ${title({page: 'demo', name: 'html', content: 'XML'})}
+            ${snippet( {content: htmlCode, lang: 'xml'}, protocol('html') )}
+        </section>
+        <section>
+            ${title({page: 'demo', name: 'javascript', content: 'Javascript', theme: {color: 'hsl(212, 100%, 50%)'}})}
+            ${snippet( {content: jsCode, lang: 'javascript', theme: main_highlight }, protocol('javascript') )}
+        </section>
+        <section>
+            ${title( {page: 'demo', name: 'css', content: 'CSS', theme: {color: 'hsl(323,100%, 50%)'} })}
+            ${snippet( {content: cssCode, lang: 'css', theme: main_highlight }, protocol('css') )}
+        </section>
     </div>
     `
     injectStyle(style)
@@ -55,32 +72,75 @@ function greeting(name) {" +
         `
         return container
     }
-}
 
-function handleColorChange(e) {
-    return injectStyle(theme[e.target.value])
-}
+    /*************************
+    * ------ Actions -------
+    *************************/
+    function handleColorChange(e) {
+        return injectStyle(theme[e.target.value])
+    }
 
-function injectStyle(style) {
-    const head = document.head || document.getElementsByTagName('head')[0]
-    head.insertAdjacentHTML("beforeend", `<style>${style}</style>`)
+    function injectStyle(style) {
+        const head = document.head || document.getElementsByTagName('head')[0]
+        head.insertAdjacentHTML("beforeend", `<style>${style}</style>`)
+    }
+
+    /*************************
+    * ------ Receivers -------
+    *************************/
+    function receive (message) {
+        const { page, from, flow, type, body } = message
+        showLog(message)
+        if (type === 'init') return showLog({page, from, flow, type: 'ready', body, filename, line: 92})
+    }
+
+    /*************************
+    * ------ Protocols -------
+    *************************/
+    // original protocol for all use
+    function protocol (name) {
+        return send => {
+            recipients[name] = send
+            return receive
+        }
+    }
+
+    /*********************************
+    * ------ Promise() Element -------
+    *********************************/
+    // keep the scroll on bottom when the log displayed on the terminal
+    function showLog (message) { 
+        sendMessage(message)
+        .then( log => {
+            terminal.append(log)
+            terminal.scrollTop = terminal.scrollHeight
+        }
+    )}
+
+    async function sendMessage (message) {
+        return await new Promise( (resolve, reject) => {
+            if (message === undefined) reject('no message import')
+            const log = domlog(message)
+            return resolve(log)
+        }).catch( err => { throw new Error(err) } )
+    }
 }
 
 const css = csjs`
 :root {
-    --font-size-primary: 1.4rem;
+    --font-primary: 1.4rem;
     --font-light: 100;
     --font-normal: 300;
     --font-bold: 600;
-    --highlight-font-family: ${main_highlight.fontFamily ? main_highlight.fontFamily : 'Arial, Helvetica, sans-serif'};
-    --highlight-font-size: ${main_highlight.fontSize ? main_highlight.fontSize : 'var(--font-size-primary)'};
-    --highlight-padding: ${main_highlight.padding ? main_highlight.padding : '1.2rem 1.6rem'};
-    --highlight-radius: ${main_highlight.borderRadius ? main_highlight.borderRadius : '8px'};
-    --highlight-border-width: ${main_highlight.borderWidth ? main_highlight.borderWidth : '2px'};
-    --highlight-border-color: ${main_highlight.borderColor ? main_highlight.borderColor : 'hsl(0, 0%, 0%)'};
-    --highlight-style: ${main_highlight.borderStyle ? main_highlight.borderStyle : 'solid'};
-    --highlight-line-height: ${main_highlight.lineHeight ? main_highlight.lineHeight : '25px'};
-    --highlight-font-weight: ${main_highlight.fontWeight ? main_highlight.fontWeight : 'var(--font-normal)'};
+    --highlight-font-family: Segoe UI Mono, Monospace, Cascadia Mono, Courier New, ui-monospace, Liberation Mono, Menlo, Monaco, Consolas;
+    --highlight-font-size: var(--font-size-primary);
+    --highlight-padding: 1.2rem 1.6rem;
+    --highlight-radius: 12px;
+    --highlight-border-width: 2px;
+    --highlight-border-color: hsl(0, 0%, 0%);
+    --highlight-border-style: solid;
+    --highlight-line-height: 1.8;
+    --highlight-font-weight: var(--font-normal);
 }
 html {
     box-sizing: border-box;
@@ -120,20 +180,25 @@ body {
     font-size: 1.6rem;
     padding: 4px 8px;
 }
+header {
+    padding-bottom: 20px;
+}
 `
 
 document.body.append( demoComponent() )
-},{"..":221,"./main_highlight.json":2,"./theme.json":3,"bel":5,"csjs-inject":8,"highlight.js":26}],2:[function(require,module,exports){
+}).call(this)}).call(this,"/demo/demo.js")
+},{"..":225,"./main_highlight.json":2,"./theme.json":3,"bel":5,"csjs-inject":8,"datdot-ui-title":25,"path":222,"ui-domlog":224}],2:[function(require,module,exports){
 module.exports={
-    "fontFamily": "Monospace, Segoe UI Mono, Lucida Console, Cascadia Mono, Courier New, ui-monospace, Liberation Mono, Menlo, Monaco, Consolas, ",
-    "fontSize": "1.4rem",
+    "fontFamily": "var(--highlight-font-family)",
+    "fontSize": "var(--highlight-font-size)",
     "fontWeight": "var(--font-light)",
-    "lineHeight": "23px",
-    "padding": "1.8rem",
-    "borderRadius": "12px",
-    "borderWidth": "8px",
-    "borderColor": "hsl(38, 100%, 53%)",
-    "borderStyle": "dotted"
+    "lineHeight": "var(--highlight-line-height)",
+    "padding": "var(--highlight-padding)",
+    "borderRadius": "var(--highlight-radius)",
+    "borderWidth": "3px",
+    "borderStyle": "dotted",
+    "borderColor": "hsl(29, 100%, 50%)",
+    "margin": "0"
 }
 },{}],3:[function(require,module,exports){
 module.exports={
@@ -469,7 +534,7 @@ module.exports = hyperx(belCreateElement, {comments: true})
 module.exports.default = module.exports
 module.exports.createElement = belCreateElement
 
-},{"./appendChild":4,"hyperx":219}],6:[function(require,module,exports){
+},{"./appendChild":4,"hyperx":220}],6:[function(require,module,exports){
 (function (global){(function (){
 'use strict';
 
@@ -488,7 +553,7 @@ function csjsInserter() {
 module.exports = csjsInserter;
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"csjs":11,"insert-css":220}],7:[function(require,module,exports){
+},{"csjs":11,"insert-css":221}],7:[function(require,module,exports){
 'use strict';
 
 module.exports = require('csjs/get-css');
@@ -966,6 +1031,41 @@ function scopify(css, ignores) {
 }
 
 },{"./regex":21,"./replace-animations":22,"./scoped-name":23}],25:[function(require,module,exports){
+const bel = require('bel')
+const csjs = require('csjs-inject')
+
+module.exports = title 
+function title(option) {
+    const {page, flow, name, content, theme} = option
+
+    function ui_element(css) {
+        const widget = 'ui-title'
+        const element = bel`<h2 class=${css.title}>${content}</h2>`
+        return element
+    }
+    
+    if (theme)
+        var {fontFamily, fontSize, fontWeight, lineHeight, color, padding } = theme
+
+    const style = csjs`
+    .title {
+        font-family: ${fontFamily ? fontFamily : 'Arial, Helvetica, sans-serif'};
+        font-size: ${fontSize ? fontSize : '2.2rem'};
+        font-weight: ${fontWeight ? fontWeight : '600'};
+        line-height: ${lineHeight ? lineHeight : '2.4rem'};
+        color: ${color ? color : 'hsl(0, 0%, 0%)'};
+        padding: ${padding ? padding : '0'};
+    }
+    h2 {
+        margin: 0;
+    }
+    `
+
+    return ui_element(style)
+}
+
+
+},{"bel":5,"csjs-inject":8}],26:[function(require,module,exports){
 function deepFreeze(obj) {
     if (obj instanceof Map) {
         obj.clear = obj.delete = obj.set = function () {
@@ -3484,7 +3584,7 @@ var highlight = HLJS({});
 
 module.exports = highlight;
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 var hljs = require('./core');
 
 hljs.registerLanguage('1c', require('./languages/1c'));
@@ -3680,7 +3780,7 @@ hljs.registerLanguage('xquery', require('./languages/xquery'));
 hljs.registerLanguage('zephir', require('./languages/zephir'));
 
 module.exports = hljs;
-},{"./core":25,"./languages/1c":27,"./languages/abnf":28,"./languages/accesslog":29,"./languages/actionscript":30,"./languages/ada":31,"./languages/angelscript":32,"./languages/apache":33,"./languages/applescript":34,"./languages/arcade":35,"./languages/arduino":36,"./languages/armasm":37,"./languages/asciidoc":38,"./languages/aspectj":39,"./languages/autohotkey":40,"./languages/autoit":41,"./languages/avrasm":42,"./languages/awk":43,"./languages/axapta":44,"./languages/bash":45,"./languages/basic":46,"./languages/bnf":47,"./languages/brainfuck":48,"./languages/c":50,"./languages/c-like":49,"./languages/cal":51,"./languages/capnproto":52,"./languages/ceylon":53,"./languages/clean":54,"./languages/clojure":56,"./languages/clojure-repl":55,"./languages/cmake":57,"./languages/coffeescript":58,"./languages/coq":59,"./languages/cos":60,"./languages/cpp":61,"./languages/crmsh":62,"./languages/crystal":63,"./languages/csharp":64,"./languages/csp":65,"./languages/css":66,"./languages/d":67,"./languages/dart":68,"./languages/delphi":69,"./languages/diff":70,"./languages/django":71,"./languages/dns":72,"./languages/dockerfile":73,"./languages/dos":74,"./languages/dsconfig":75,"./languages/dts":76,"./languages/dust":77,"./languages/ebnf":78,"./languages/elixir":79,"./languages/elm":80,"./languages/erb":81,"./languages/erlang":83,"./languages/erlang-repl":82,"./languages/excel":84,"./languages/fix":85,"./languages/flix":86,"./languages/fortran":87,"./languages/fsharp":88,"./languages/gams":89,"./languages/gauss":90,"./languages/gcode":91,"./languages/gherkin":92,"./languages/glsl":93,"./languages/gml":94,"./languages/go":95,"./languages/golo":96,"./languages/gradle":97,"./languages/groovy":98,"./languages/haml":99,"./languages/handlebars":100,"./languages/haskell":101,"./languages/haxe":102,"./languages/hsp":103,"./languages/htmlbars":104,"./languages/http":105,"./languages/hy":106,"./languages/inform7":107,"./languages/ini":108,"./languages/irpf90":109,"./languages/isbl":110,"./languages/java":111,"./languages/javascript":112,"./languages/jboss-cli":113,"./languages/json":114,"./languages/julia":116,"./languages/julia-repl":115,"./languages/kotlin":117,"./languages/lasso":118,"./languages/latex":119,"./languages/ldif":120,"./languages/leaf":121,"./languages/less":122,"./languages/lisp":123,"./languages/livecodeserver":124,"./languages/livescript":125,"./languages/llvm":126,"./languages/lsl":127,"./languages/lua":128,"./languages/makefile":129,"./languages/markdown":130,"./languages/mathematica":131,"./languages/matlab":132,"./languages/maxima":133,"./languages/mel":134,"./languages/mercury":135,"./languages/mipsasm":136,"./languages/mizar":137,"./languages/mojolicious":138,"./languages/monkey":139,"./languages/moonscript":140,"./languages/n1ql":141,"./languages/nginx":142,"./languages/nim":143,"./languages/nix":144,"./languages/node-repl":145,"./languages/nsis":146,"./languages/objectivec":147,"./languages/ocaml":148,"./languages/openscad":149,"./languages/oxygene":150,"./languages/parser3":151,"./languages/perl":152,"./languages/pf":153,"./languages/pgsql":154,"./languages/php":156,"./languages/php-template":155,"./languages/plaintext":157,"./languages/pony":158,"./languages/powershell":159,"./languages/processing":160,"./languages/profile":161,"./languages/prolog":162,"./languages/properties":163,"./languages/protobuf":164,"./languages/puppet":165,"./languages/purebasic":166,"./languages/python":168,"./languages/python-repl":167,"./languages/q":169,"./languages/qml":170,"./languages/r":171,"./languages/reasonml":172,"./languages/rib":173,"./languages/roboconf":174,"./languages/routeros":175,"./languages/rsl":176,"./languages/ruby":177,"./languages/ruleslanguage":178,"./languages/rust":179,"./languages/sas":180,"./languages/scala":181,"./languages/scheme":182,"./languages/scilab":183,"./languages/scss":184,"./languages/shell":185,"./languages/smali":186,"./languages/smalltalk":187,"./languages/sml":188,"./languages/sqf":189,"./languages/sql":190,"./languages/sql_more":191,"./languages/stan":192,"./languages/stata":193,"./languages/step21":194,"./languages/stylus":195,"./languages/subunit":196,"./languages/swift":197,"./languages/taggerscript":198,"./languages/tap":199,"./languages/tcl":200,"./languages/thrift":201,"./languages/tp":202,"./languages/twig":203,"./languages/typescript":204,"./languages/vala":205,"./languages/vbnet":206,"./languages/vbscript":208,"./languages/vbscript-html":207,"./languages/verilog":209,"./languages/vhdl":210,"./languages/vim":211,"./languages/x86asm":212,"./languages/xl":213,"./languages/xml":214,"./languages/xquery":215,"./languages/yaml":216,"./languages/zephir":217}],27:[function(require,module,exports){
+},{"./core":26,"./languages/1c":28,"./languages/abnf":29,"./languages/accesslog":30,"./languages/actionscript":31,"./languages/ada":32,"./languages/angelscript":33,"./languages/apache":34,"./languages/applescript":35,"./languages/arcade":36,"./languages/arduino":37,"./languages/armasm":38,"./languages/asciidoc":39,"./languages/aspectj":40,"./languages/autohotkey":41,"./languages/autoit":42,"./languages/avrasm":43,"./languages/awk":44,"./languages/axapta":45,"./languages/bash":46,"./languages/basic":47,"./languages/bnf":48,"./languages/brainfuck":49,"./languages/c":51,"./languages/c-like":50,"./languages/cal":52,"./languages/capnproto":53,"./languages/ceylon":54,"./languages/clean":55,"./languages/clojure":57,"./languages/clojure-repl":56,"./languages/cmake":58,"./languages/coffeescript":59,"./languages/coq":60,"./languages/cos":61,"./languages/cpp":62,"./languages/crmsh":63,"./languages/crystal":64,"./languages/csharp":65,"./languages/csp":66,"./languages/css":67,"./languages/d":68,"./languages/dart":69,"./languages/delphi":70,"./languages/diff":71,"./languages/django":72,"./languages/dns":73,"./languages/dockerfile":74,"./languages/dos":75,"./languages/dsconfig":76,"./languages/dts":77,"./languages/dust":78,"./languages/ebnf":79,"./languages/elixir":80,"./languages/elm":81,"./languages/erb":82,"./languages/erlang":84,"./languages/erlang-repl":83,"./languages/excel":85,"./languages/fix":86,"./languages/flix":87,"./languages/fortran":88,"./languages/fsharp":89,"./languages/gams":90,"./languages/gauss":91,"./languages/gcode":92,"./languages/gherkin":93,"./languages/glsl":94,"./languages/gml":95,"./languages/go":96,"./languages/golo":97,"./languages/gradle":98,"./languages/groovy":99,"./languages/haml":100,"./languages/handlebars":101,"./languages/haskell":102,"./languages/haxe":103,"./languages/hsp":104,"./languages/htmlbars":105,"./languages/http":106,"./languages/hy":107,"./languages/inform7":108,"./languages/ini":109,"./languages/irpf90":110,"./languages/isbl":111,"./languages/java":112,"./languages/javascript":113,"./languages/jboss-cli":114,"./languages/json":115,"./languages/julia":117,"./languages/julia-repl":116,"./languages/kotlin":118,"./languages/lasso":119,"./languages/latex":120,"./languages/ldif":121,"./languages/leaf":122,"./languages/less":123,"./languages/lisp":124,"./languages/livecodeserver":125,"./languages/livescript":126,"./languages/llvm":127,"./languages/lsl":128,"./languages/lua":129,"./languages/makefile":130,"./languages/markdown":131,"./languages/mathematica":132,"./languages/matlab":133,"./languages/maxima":134,"./languages/mel":135,"./languages/mercury":136,"./languages/mipsasm":137,"./languages/mizar":138,"./languages/mojolicious":139,"./languages/monkey":140,"./languages/moonscript":141,"./languages/n1ql":142,"./languages/nginx":143,"./languages/nim":144,"./languages/nix":145,"./languages/node-repl":146,"./languages/nsis":147,"./languages/objectivec":148,"./languages/ocaml":149,"./languages/openscad":150,"./languages/oxygene":151,"./languages/parser3":152,"./languages/perl":153,"./languages/pf":154,"./languages/pgsql":155,"./languages/php":157,"./languages/php-template":156,"./languages/plaintext":158,"./languages/pony":159,"./languages/powershell":160,"./languages/processing":161,"./languages/profile":162,"./languages/prolog":163,"./languages/properties":164,"./languages/protobuf":165,"./languages/puppet":166,"./languages/purebasic":167,"./languages/python":169,"./languages/python-repl":168,"./languages/q":170,"./languages/qml":171,"./languages/r":172,"./languages/reasonml":173,"./languages/rib":174,"./languages/roboconf":175,"./languages/routeros":176,"./languages/rsl":177,"./languages/ruby":178,"./languages/ruleslanguage":179,"./languages/rust":180,"./languages/sas":181,"./languages/scala":182,"./languages/scheme":183,"./languages/scilab":184,"./languages/scss":185,"./languages/shell":186,"./languages/smali":187,"./languages/smalltalk":188,"./languages/sml":189,"./languages/sqf":190,"./languages/sql":191,"./languages/sql_more":192,"./languages/stan":193,"./languages/stata":194,"./languages/step21":195,"./languages/stylus":196,"./languages/subunit":197,"./languages/swift":198,"./languages/taggerscript":199,"./languages/tap":200,"./languages/tcl":201,"./languages/thrift":202,"./languages/tp":203,"./languages/twig":204,"./languages/typescript":205,"./languages/vala":206,"./languages/vbnet":207,"./languages/vbscript":209,"./languages/vbscript-html":208,"./languages/verilog":210,"./languages/vhdl":211,"./languages/vim":212,"./languages/x86asm":213,"./languages/xl":214,"./languages/xml":215,"./languages/xquery":216,"./languages/yaml":217,"./languages/zephir":218}],28:[function(require,module,exports){
 /*
 Language: 1C:Enterprise
 Author: Stanislav Belov <stbelov@gmail.com>
@@ -4203,7 +4303,7 @@ function _1c(hljs) {
 
 module.exports = _1c;
 
-},{}],28:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -4308,7 +4408,7 @@ function abnf(hljs) {
 
 module.exports = abnf;
 
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -4437,7 +4537,7 @@ function accesslog(_hljs) {
 
 module.exports = accesslog;
 
-},{}],30:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -4552,7 +4652,7 @@ function actionscript(hljs) {
 
 module.exports = actionscript;
 
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 /*
 Language: Ada
 Author: Lars Schulna <kartoffelbrei.mit.muskatnuss@gmail.org>
@@ -4748,7 +4848,7 @@ function ada(hljs) {
 
 module.exports = ada;
 
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 /*
 Language: AngelScript
 Author: Melissa Geels <melissa@nimble.tools>
@@ -4873,7 +4973,7 @@ function angelscript(hljs) {
 
 module.exports = angelscript;
 
-},{}],33:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 /*
 Language: Apache config
 Author: Ruslan Keba <rukeba@gmail.com>
@@ -4964,7 +5064,7 @@ function apache(hljs) {
 
 module.exports = apache;
 
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -5155,7 +5255,7 @@ function applescript(hljs) {
 
 module.exports = applescript;
 
-},{}],35:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 /*
  Language: ArcGIS Arcade
  Category: scripting
@@ -5322,7 +5422,7 @@ function arcade(hljs) {
 
 module.exports = arcade;
 
-},{}],36:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -5900,7 +6000,7 @@ function arduino(hljs) {
 
 module.exports = arduino;
 
-},{}],37:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 /*
 Language: ARM Assembly
 Author: Dan Panzarella <alsoelp@gmail.com>
@@ -6033,7 +6133,7 @@ function armasm(hljs) {
 
 module.exports = armasm;
 
-},{}],38:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -6338,7 +6438,7 @@ function asciidoc(hljs) {
 
 module.exports = asciidoc;
 
-},{}],39:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -6526,7 +6626,7 @@ function aspectj(hljs) {
 
 module.exports = aspectj;
 
-},{}],40:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 /*
 Language: AutoHotkey
 Author: Seongwon Lee <dlimpid@gmail.com>
@@ -6612,7 +6712,7 @@ function autohotkey(hljs) {
 
 module.exports = autohotkey;
 
-},{}],41:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 /*
 Language: AutoIt
 Author: Manh Tuan <junookyo@gmail.com>
@@ -6797,7 +6897,7 @@ function autoit(hljs) {
 
 module.exports = autoit;
 
-},{}],42:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 /*
 Language: AVR Assembly
 Author: Vladimir Ermakov <vooon341@gmail.com>
@@ -6879,7 +6979,7 @@ function avrasm(hljs) {
 
 module.exports = avrasm;
 
-},{}],43:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 /*
 Language: Awk
 Author: Matthew Daly <matthewbdaly@gmail.com>
@@ -6954,7 +7054,7 @@ function awk(hljs) {
 
 module.exports = awk;
 
-},{}],44:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 /*
 Language: Microsoft X++
 Description: X++ is a language used in Microsoft Dynamics 365, Dynamics AX, and Axapta.
@@ -7135,7 +7235,7 @@ function axapta(hljs) {
 
 module.exports = axapta;
 
-},{}],45:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -7306,7 +7406,7 @@ function bash(hljs) {
 
 module.exports = bash;
 
-},{}],46:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 /*
 Language: BASIC
 Author: Raphaël Assénat <raph@raphnet.net>
@@ -7373,7 +7473,7 @@ function basic(hljs) {
 
 module.exports = basic;
 
-},{}],47:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 /*
 Language: Backus–Naur Form
 Website: https://en.wikipedia.org/wiki/Backus–Naur_form
@@ -7413,7 +7513,7 @@ function bnf(hljs) {
 
 module.exports = bnf;
 
-},{}],48:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 /*
 Language: Brainfuck
 Author: Evgeny Stepanischev <imbolk@gmail.com>
@@ -7461,7 +7561,7 @@ function brainfuck(hljs) {
 
 module.exports = brainfuck;
 
-},{}],49:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -7964,7 +8064,7 @@ function cLike(hljs) {
 
 module.exports = cLike;
 
-},{}],50:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -8275,7 +8375,7 @@ function c(hljs) {
 
 module.exports = c;
 
-},{}],51:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 /*
 Language: C/AL
 Author: Kenneth Fuglsang Christensen <kfuglsang@gmail.com>
@@ -8381,7 +8481,7 @@ function cal(hljs) {
 
 module.exports = cal;
 
-},{}],52:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 /*
 Language: Cap’n Proto
 Author: Oleg Efimov <efimovov@gmail.com>
@@ -8447,7 +8547,7 @@ function capnproto(hljs) {
 
 module.exports = capnproto;
 
-},{}],53:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 /*
 Language: Ceylon
 Author: Lucas Werkmeister <mail@lucaswerkmeister.de>
@@ -8531,7 +8631,7 @@ function ceylon(hljs) {
 
 module.exports = ceylon;
 
-},{}],54:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 /*
 Language: Clean
 Author: Camil Staps <info@camilstaps.nl>
@@ -8573,7 +8673,7 @@ function clean(hljs) {
 
 module.exports = clean;
 
-},{}],55:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 /*
 Language: Clojure REPL
 Description: Clojure REPL sessions
@@ -8602,7 +8702,7 @@ function clojureRepl(hljs) {
 
 module.exports = clojureRepl;
 
-},{}],56:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 /*
 Language: Clojure
 Description: Clojure syntax (based on lisp.js)
@@ -8762,7 +8862,7 @@ function clojure(hljs) {
 
 module.exports = clojure;
 
-},{}],57:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 /*
 Language: CMake
 Description: CMake is an open-source cross-platform system for build automation.
@@ -8828,7 +8928,7 @@ function cmake(hljs) {
 
 module.exports = cmake;
 
-},{}],58:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 const KEYWORDS = [
   "as", // for exports
   "in",
@@ -9186,7 +9286,7 @@ function coffeescript(hljs) {
 
 module.exports = coffeescript;
 
-},{}],59:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 /*
 Language: Coq
 Author: Stephan Boyer <stephan@stephanboyer.com>
@@ -9267,7 +9367,7 @@ function coq(hljs) {
 
 module.exports = coq;
 
-},{}],60:[function(require,module,exports){
+},{}],61:[function(require,module,exports){
 /*
 Language: Caché Object Script
 Author: Nikita Savchenko <zitros.lab@gmail.com>
@@ -9407,7 +9507,7 @@ function cos(hljs) {
 
 module.exports = cos;
 
-},{}],61:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -9873,7 +9973,7 @@ function cpp(hljs) {
 
 module.exports = cpp;
 
-},{}],62:[function(require,module,exports){
+},{}],63:[function(require,module,exports){
 /*
 Language: crmsh
 Author: Kristoffer Gronlund <kgronlund@suse.com>
@@ -9977,7 +10077,7 @@ function crmsh(hljs) {
 
 module.exports = crmsh;
 
-},{}],63:[function(require,module,exports){
+},{}],64:[function(require,module,exports){
 /*
 Language: Crystal
 Author: TSUYUSATO Kitsune <make.just.on@gmail.com>
@@ -10305,7 +10405,7 @@ function crystal(hljs) {
 
 module.exports = crystal;
 
-},{}],64:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
 /*
 Language: C#
 Author: Jason Diamond <jason@diamond.name>
@@ -10748,7 +10848,7 @@ function csharp(hljs) {
 
 module.exports = csharp;
 
-},{}],65:[function(require,module,exports){
+},{}],66:[function(require,module,exports){
 /*
 Language: CSP
 Description: Content Security Policy definition highlighting
@@ -10787,7 +10887,7 @@ function csp(hljs) {
 
 module.exports = csp;
 
-},{}],66:[function(require,module,exports){
+},{}],67:[function(require,module,exports){
 const MODES = (hljs) => {
   return {
     IMPORTANT: {
@@ -11397,7 +11497,7 @@ function css(hljs) {
 
 module.exports = css;
 
-},{}],67:[function(require,module,exports){
+},{}],68:[function(require,module,exports){
 /*
 Language: D
 Author: Aleksandar Ruzicic <aleksandar@ruzicic.info>
@@ -11670,7 +11770,7 @@ function d(hljs) {
 
 module.exports = d;
 
-},{}],68:[function(require,module,exports){
+},{}],69:[function(require,module,exports){
 /*
 Language: Dart
 Requires: markdown.js
@@ -11871,7 +11971,7 @@ function dart(hljs) {
 
 module.exports = dart;
 
-},{}],69:[function(require,module,exports){
+},{}],70:[function(require,module,exports){
 /*
 Language: Delphi
 Website: https://www.embarcadero.com/products/delphi
@@ -11999,7 +12099,7 @@ function delphi(hljs) {
 
 module.exports = delphi;
 
-},{}],70:[function(require,module,exports){
+},{}],71:[function(require,module,exports){
 /*
 Language: Diff
 Description: Unified and context diff
@@ -12086,7 +12186,7 @@ function diff(hljs) {
 
 module.exports = diff;
 
-},{}],71:[function(require,module,exports){
+},{}],72:[function(require,module,exports){
 /*
 Language: Django
 Description: Django is a high-level Python Web framework that encourages rapid development and clean, pragmatic design.
@@ -12165,7 +12265,7 @@ function django(hljs) {
 
 module.exports = django;
 
-},{}],72:[function(require,module,exports){
+},{}],73:[function(require,module,exports){
 /*
 Language: DNS Zone
 Author: Tim Schumacher <tim@datenknoten.me>
@@ -12213,7 +12313,7 @@ function dns(hljs) {
 
 module.exports = dns;
 
-},{}],73:[function(require,module,exports){
+},{}],74:[function(require,module,exports){
 /*
 Language: Dockerfile
 Requires: bash.js
@@ -12249,7 +12349,7 @@ function dockerfile(hljs) {
 
 module.exports = dockerfile;
 
-},{}],74:[function(require,module,exports){
+},{}],75:[function(require,module,exports){
 /*
 Language: Batch file (DOS)
 Author: Alexander Makarov <sam@rmcreative.ru>
@@ -12321,7 +12421,7 @@ function dos(hljs) {
 
 module.exports = dos;
 
-},{}],75:[function(require,module,exports){
+},{}],76:[function(require,module,exports){
 /*
  Language: dsconfig
  Description: dsconfig batch configuration language for LDAP directory servers
@@ -12389,7 +12489,7 @@ function dsconfig(hljs) {
 
 module.exports = dsconfig;
 
-},{}],76:[function(require,module,exports){
+},{}],77:[function(require,module,exports){
 /*
 Language: Device Tree
 Description: *.dts files used in the Linux kernel
@@ -12544,7 +12644,7 @@ function dts(hljs) {
 
 module.exports = dts;
 
-},{}],77:[function(require,module,exports){
+},{}],78:[function(require,module,exports){
 /*
 Language: Dust
 Requires: xml.js
@@ -12591,7 +12691,7 @@ function dust(hljs) {
 
 module.exports = dust;
 
-},{}],78:[function(require,module,exports){
+},{}],79:[function(require,module,exports){
 /*
 Language: Extended Backus-Naur Form
 Author: Alex McKibben <alex@nullscope.net>
@@ -12646,7 +12746,7 @@ function ebnf(hljs) {
 
 module.exports = ebnf;
 
-},{}],79:[function(require,module,exports){
+},{}],80:[function(require,module,exports){
 /*
 Language: Elixir
 Author: Josh Adams <josh@isotope11.com>
@@ -12907,7 +13007,7 @@ function elixir(hljs) {
 
 module.exports = elixir;
 
-},{}],80:[function(require,module,exports){
+},{}],81:[function(require,module,exports){
 /*
 Language: Elm
 Author: Janis Voigtlaender <janis.voigtlaender@gmail.com>
@@ -13038,7 +13138,7 @@ function elm(hljs) {
 
 module.exports = elm;
 
-},{}],81:[function(require,module,exports){
+},{}],82:[function(require,module,exports){
 /*
 Language: ERB (Embedded Ruby)
 Requires: xml.js, ruby.js
@@ -13069,7 +13169,7 @@ function erb(hljs) {
 
 module.exports = erb;
 
-},{}],82:[function(require,module,exports){
+},{}],83:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -13157,7 +13257,7 @@ function erlangRepl(hljs) {
 
 module.exports = erlangRepl;
 
-},{}],83:[function(require,module,exports){
+},{}],84:[function(require,module,exports){
 /*
 Language: Erlang
 Description: Erlang is a general-purpose functional language, with strict evaluation, single assignment, and dynamic typing.
@@ -13358,7 +13458,7 @@ function erlang(hljs) {
 
 module.exports = erlang;
 
-},{}],84:[function(require,module,exports){
+},{}],85:[function(require,module,exports){
 /*
 Language: Excel formulae
 Author: Victor Zhou <OiCMudkips@users.noreply.github.com>
@@ -13424,7 +13524,7 @@ function excel(hljs) {
 
 module.exports = excel;
 
-},{}],85:[function(require,module,exports){
+},{}],86:[function(require,module,exports){
 /*
 Language: FIX
 Author: Brent Bradbury <brent@brentium.com>
@@ -13463,7 +13563,7 @@ function fix(hljs) {
 
 module.exports = fix;
 
-},{}],86:[function(require,module,exports){
+},{}],87:[function(require,module,exports){
 /*
  Language: Flix
  Category: functional
@@ -13519,7 +13619,7 @@ function flix(hljs) {
 
 module.exports = flix;
 
-},{}],87:[function(require,module,exports){
+},{}],88:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -13680,7 +13780,7 @@ function fortran(hljs) {
 
 module.exports = fortran;
 
-},{}],88:[function(require,module,exports){
+},{}],89:[function(require,module,exports){
 /*
 Language: F#
 Author: Jonas Follesø <jonas@follesoe.no>
@@ -13768,7 +13868,7 @@ function fsharp(hljs) {
 
 module.exports = fsharp;
 
-},{}],89:[function(require,module,exports){
+},{}],90:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -13978,7 +14078,7 @@ function gams(hljs) {
 
 module.exports = gams;
 
-},{}],90:[function(require,module,exports){
+},{}],91:[function(require,module,exports){
 /*
 Language: GAUSS
 Author: Matt Evans <matt@aptech.com>
@@ -14296,7 +14396,7 @@ function gauss(hljs) {
 
 module.exports = gauss;
 
-},{}],91:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
 /*
  Language: G-code (ISO 6983)
  Contributors: Adam Joseph Cook <adam.joseph.cook@gmail.com>
@@ -14386,7 +14486,7 @@ function gcode(hljs) {
 
 module.exports = gcode;
 
-},{}],92:[function(require,module,exports){
+},{}],93:[function(require,module,exports){
 /*
  Language: Gherkin
  Author: Sam Pikesley (@pikesley) <sam.pikesley@theodi.org>
@@ -14437,7 +14537,7 @@ function gherkin(hljs) {
 
 module.exports = gherkin;
 
-},{}],93:[function(require,module,exports){
+},{}],94:[function(require,module,exports){
 /*
 Language: GLSL
 Description: OpenGL Shading Language
@@ -14567,7 +14667,7 @@ function glsl(hljs) {
 
 module.exports = glsl;
 
-},{}],94:[function(require,module,exports){
+},{}],95:[function(require,module,exports){
 /*
 Language: GML
 Author: Meseta <meseta@gmail.com>
@@ -15454,7 +15554,7 @@ function gml(hljs) {
 
 module.exports = gml;
 
-},{}],95:[function(require,module,exports){
+},{}],96:[function(require,module,exports){
 /*
 Language: Go
 Author: Stephan Kountso aka StepLg <steplg@gmail.com>
@@ -15530,7 +15630,7 @@ function go(hljs) {
 
 module.exports = go;
 
-},{}],96:[function(require,module,exports){
+},{}],97:[function(require,module,exports){
 /*
 Language: Golo
 Author: Philippe Charriere <ph.charriere@gmail.com>
@@ -15565,7 +15665,7 @@ function golo(hljs) {
 
 module.exports = golo;
 
-},{}],97:[function(require,module,exports){
+},{}],98:[function(require,module,exports){
 /*
 Language: Gradle
 Description: Gradle is an open-source build automation tool focused on flexibility and performance.
@@ -15611,7 +15711,7 @@ function gradle(hljs) {
 
 module.exports = gradle;
 
-},{}],98:[function(require,module,exports){
+},{}],99:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -15787,7 +15887,7 @@ function groovy(hljs) {
 
 module.exports = groovy;
 
-},{}],99:[function(require,module,exports){
+},{}],100:[function(require,module,exports){
 /*
 Language: HAML
 Requires: ruby.js
@@ -15906,7 +16006,7 @@ function haml(hljs) {
 
 module.exports = haml;
 
-},{}],100:[function(require,module,exports){
+},{}],101:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -16232,7 +16332,7 @@ function handlebars(hljs) {
 
 module.exports = handlebars;
 
-},{}],101:[function(require,module,exports){
+},{}],102:[function(require,module,exports){
 /*
 Language: Haskell
 Author: Jeremy Hull <sourdrums@gmail.com>
@@ -16407,7 +16507,7 @@ function haskell(hljs) {
 
 module.exports = haskell;
 
-},{}],102:[function(require,module,exports){
+},{}],103:[function(require,module,exports){
 /*
 Language: Haxe
 Description: Haxe is an open source toolkit based on a modern, high level, strictly typed programming language.
@@ -16566,7 +16666,7 @@ function haxe(hljs) {
 
 module.exports = haxe;
 
-},{}],103:[function(require,module,exports){
+},{}],104:[function(require,module,exports){
 /*
 Language: HSP
 Author: prince <MC.prince.0203@gmail.com>
@@ -16633,7 +16733,7 @@ function hsp(hljs) {
 
 module.exports = hsp;
 
-},{}],104:[function(require,module,exports){
+},{}],105:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -16987,7 +17087,7 @@ function htmlbars(hljs) {
 
 module.exports = htmlbars;
 
-},{}],105:[function(require,module,exports){
+},{}],106:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -17110,7 +17210,7 @@ function http(hljs) {
 
 module.exports = http;
 
-},{}],106:[function(require,module,exports){
+},{}],107:[function(require,module,exports){
 /*
 Language: Hy
 Description: Hy is a wonderful dialect of Lisp that’s embedded in Python.
@@ -17221,7 +17321,7 @@ function hy(hljs) {
 
 module.exports = hy;
 
-},{}],107:[function(require,module,exports){
+},{}],108:[function(require,module,exports){
 /*
 Language: Inform 7
 Author: Bruno Dias <bruno.r.dias@gmail.com>
@@ -17293,7 +17393,7 @@ function inform7(hljs) {
 
 module.exports = inform7;
 
-},{}],108:[function(require,module,exports){
+},{}],109:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -17468,7 +17568,7 @@ function ini(hljs) {
 
 module.exports = ini;
 
-},{}],109:[function(require,module,exports){
+},{}],110:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -17611,7 +17711,7 @@ function irpf90(hljs) {
 
 module.exports = irpf90;
 
-},{}],110:[function(require,module,exports){
+},{}],111:[function(require,module,exports){
 /*
 Language: ISBL
 Author: Dmitriy Tarasov <dimatar@gmail.com>
@@ -20820,7 +20920,7 @@ function isbl(hljs) {
 
 module.exports = isbl;
 
-},{}],111:[function(require,module,exports){
+},{}],112:[function(require,module,exports){
 // https://docs.oracle.com/javase/specs/jls/se15/html/jls-3.html#jls-3.10
 var decimalDigits = '[0-9](_*[0-9])*';
 var frac = `\\.(${decimalDigits})`;
@@ -21003,7 +21103,7 @@ function java(hljs) {
 
 module.exports = java;
 
-},{}],112:[function(require,module,exports){
+},{}],113:[function(require,module,exports){
 const IDENT_RE = '[A-Za-z$_][0-9A-Za-z$_]*';
 const KEYWORDS = [
   "as", // for exports
@@ -21609,7 +21709,7 @@ function javascript(hljs) {
 
 module.exports = javascript;
 
-},{}],113:[function(require,module,exports){
+},{}],114:[function(require,module,exports){
 /*
  Language: JBoss CLI
  Author: Raphaël Parrëe <rparree@edc4it.com>
@@ -21674,7 +21774,7 @@ function jbossCli(hljs) {
 
 module.exports = jbossCli;
 
-},{}],114:[function(require,module,exports){
+},{}],115:[function(require,module,exports){
 /*
 Language: JSON
 Description: JSON (JavaScript Object Notation) is a lightweight data-interchange format.
@@ -21739,7 +21839,7 @@ function json(hljs) {
 
 module.exports = json;
 
-},{}],115:[function(require,module,exports){
+},{}],116:[function(require,module,exports){
 /*
 Language: Julia REPL
 Description: Julia REPL sessions
@@ -21791,7 +21891,7 @@ function juliaRepl(hljs) {
 
 module.exports = juliaRepl;
 
-},{}],116:[function(require,module,exports){
+},{}],117:[function(require,module,exports){
 /*
 Language: Julia
 Description: Julia is a high-level, high-performance, dynamic programming language.
@@ -22209,7 +22309,7 @@ function julia(hljs) {
 
 module.exports = julia;
 
-},{}],117:[function(require,module,exports){
+},{}],118:[function(require,module,exports){
 // https://docs.oracle.com/javase/specs/jls/se15/html/jls-3.html#jls-3.10
 var decimalDigits = '[0-9](_*[0-9])*';
 var frac = `\\.(${decimalDigits})`;
@@ -22495,7 +22595,7 @@ function kotlin(hljs) {
 
 module.exports = kotlin;
 
-},{}],118:[function(require,module,exports){
+},{}],119:[function(require,module,exports){
 /*
 Language: Lasso
 Author: Eric Knibbe <eric@lassosoft.com>
@@ -22684,7 +22784,7 @@ function lasso(hljs) {
 
 module.exports = lasso;
 
-},{}],119:[function(require,module,exports){
+},{}],120:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -22962,7 +23062,7 @@ function latex(hljs) {
 
 module.exports = latex;
 
-},{}],120:[function(require,module,exports){
+},{}],121:[function(require,module,exports){
 /*
 Language: LDIF
 Contributors: Jacob Childress <jacobc@gmail.com>
@@ -23006,7 +23106,7 @@ function ldif(hljs) {
 
 module.exports = ldif;
 
-},{}],121:[function(require,module,exports){
+},{}],122:[function(require,module,exports){
 /*
 Language: Leaf
 Author: Hale Chan <halechan@qq.com>
@@ -23057,7 +23157,7 @@ function leaf(hljs) {
 
 module.exports = leaf;
 
-},{}],122:[function(require,module,exports){
+},{}],123:[function(require,module,exports){
 const MODES = (hljs) => {
   return {
     IMPORTANT: {
@@ -23725,7 +23825,7 @@ function less(hljs) {
 
 module.exports = less;
 
-},{}],123:[function(require,module,exports){
+},{}],124:[function(require,module,exports){
 /*
 Language: Lisp
 Description: Generic lisp syntax
@@ -23838,7 +23938,7 @@ function lisp(hljs) {
 
 module.exports = lisp;
 
-},{}],124:[function(require,module,exports){
+},{}],125:[function(require,module,exports){
 /*
 Language: LiveCode
 Author: Ralf Bitter <rabit@revigniter.com>
@@ -24029,7 +24129,7 @@ function livecodeserver(hljs) {
 
 module.exports = livecodeserver;
 
-},{}],125:[function(require,module,exports){
+},{}],126:[function(require,module,exports){
 const KEYWORDS = [
   "as", // for exports
   "in",
@@ -24405,7 +24505,7 @@ function livescript(hljs) {
 
 module.exports = livescript;
 
-},{}],126:[function(require,module,exports){
+},{}],127:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -24561,7 +24661,7 @@ function llvm(hljs) {
 
 module.exports = llvm;
 
-},{}],127:[function(require,module,exports){
+},{}],128:[function(require,module,exports){
 /*
 Language: LSL (Linden Scripting Language)
 Description: The Linden Scripting Language is used in Second Life by Linden Labs.
@@ -24658,7 +24758,7 @@ function lsl(hljs) {
 
 module.exports = lsl;
 
-},{}],128:[function(require,module,exports){
+},{}],129:[function(require,module,exports){
 /*
 Language: Lua
 Description: Lua is a powerful, efficient, lightweight, embeddable scripting language.
@@ -24742,7 +24842,7 @@ function lua(hljs) {
 
 module.exports = lua;
 
-},{}],129:[function(require,module,exports){
+},{}],130:[function(require,module,exports){
 /*
 Language: Makefile
 Author: Ivan Sagalaev <maniac@softwaremaniacs.org>
@@ -24836,7 +24936,7 @@ function makefile(hljs) {
 
 module.exports = makefile;
 
-},{}],130:[function(require,module,exports){
+},{}],131:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -25096,7 +25196,7 @@ function markdown(hljs) {
 
 module.exports = markdown;
 
-},{}],131:[function(require,module,exports){
+},{}],132:[function(require,module,exports){
 const SYSTEM_SYMBOLS = [
   "AASTriangle",
   "AbelianGroup",
@@ -31895,7 +31995,7 @@ function mathematica(hljs) {
 
 module.exports = mathematica;
 
-},{}],132:[function(require,module,exports){
+},{}],133:[function(require,module,exports){
 /*
 Language: Matlab
 Author: Denis Bardadym <bardadymchik@gmail.com>
@@ -32003,7 +32103,7 @@ function matlab(hljs) {
 
 module.exports = matlab;
 
-},{}],133:[function(require,module,exports){
+},{}],134:[function(require,module,exports){
 /*
 Language: Maxima
 Author: Robert Dodier <robert.dodier@gmail.com>
@@ -32422,7 +32522,7 @@ function maxima(hljs) {
 
 module.exports = maxima;
 
-},{}],134:[function(require,module,exports){
+},{}],135:[function(require,module,exports){
 /*
 Language: MEL
 Description: Maya Embedded Language
@@ -32660,7 +32760,7 @@ function mel(hljs) {
 
 module.exports = mel;
 
-},{}],135:[function(require,module,exports){
+},{}],136:[function(require,module,exports){
 /*
 Language: Mercury
 Author: mucaho <mkucko@gmail.com>
@@ -32783,7 +32883,7 @@ function mercury(hljs) {
 
 module.exports = mercury;
 
-},{}],136:[function(require,module,exports){
+},{}],137:[function(require,module,exports){
 /*
 Language: MIPS Assembly
 Author: Nebuleon Fumika <nebuleon.fumika@gmail.com>
@@ -32894,7 +32994,7 @@ function mipsasm(hljs) {
 
 module.exports = mipsasm;
 
-},{}],137:[function(require,module,exports){
+},{}],138:[function(require,module,exports){
 /*
 Language: Mizar
 Description: The Mizar Language is a formal language derived from the mathematical vernacular.
@@ -32925,7 +33025,7 @@ function mizar(hljs) {
 
 module.exports = mizar;
 
-},{}],138:[function(require,module,exports){
+},{}],139:[function(require,module,exports){
 /*
 Language: Mojolicious
 Requires: xml.js, perl.js
@@ -32963,7 +33063,7 @@ function mojolicious(hljs) {
 
 module.exports = mojolicious;
 
-},{}],139:[function(require,module,exports){
+},{}],140:[function(require,module,exports){
 /*
 Language: Monkey
 Description: Monkey2 is an easy to use, cross platform, games oriented programming language from Blitz Research.
@@ -33054,7 +33154,7 @@ function monkey(hljs) {
 
 module.exports = monkey;
 
-},{}],140:[function(require,module,exports){
+},{}],141:[function(require,module,exports){
 /*
 Language: MoonScript
 Author: Billy Quith <chinbillybilbo@gmail.com>
@@ -33203,7 +33303,7 @@ function moonscript(hljs) {
 
 module.exports = moonscript;
 
-},{}],141:[function(require,module,exports){
+},{}],142:[function(require,module,exports){
 /*
  Language: N1QL
  Author: Andres Täht <andres.taht@gmail.com>
@@ -33282,7 +33382,7 @@ function n1ql(hljs) {
 
 module.exports = n1ql;
 
-},{}],142:[function(require,module,exports){
+},{}],143:[function(require,module,exports){
 /*
 Language: Nginx config
 Author: Peter Leonov <gojpeg@yandex.ru>
@@ -33424,7 +33524,7 @@ function nginx(hljs) {
 
 module.exports = nginx;
 
-},{}],143:[function(require,module,exports){
+},{}],144:[function(require,module,exports){
 /*
 Language: Nim
 Description: Nim is a statically typed compiled systems programming language.
@@ -33505,7 +33605,7 @@ function nim(hljs) {
 
 module.exports = nim;
 
-},{}],144:[function(require,module,exports){
+},{}],145:[function(require,module,exports){
 /*
 Language: Nix
 Author: Domen Kožar <domen@dev.si>
@@ -33572,7 +33672,7 @@ function nix(hljs) {
 
 module.exports = nix;
 
-},{}],145:[function(require,module,exports){
+},{}],146:[function(require,module,exports){
 /*
 Language: Node REPL
 Requires: javascript.js
@@ -33611,7 +33711,7 @@ function nodeRepl(hljs) {
 
 module.exports = nodeRepl;
 
-},{}],146:[function(require,module,exports){
+},{}],147:[function(require,module,exports){
 /*
 Language: NSIS
 Description: Nullsoft Scriptable Install System
@@ -33732,7 +33832,7 @@ function nsis(hljs) {
 
 module.exports = nsis;
 
-},{}],147:[function(require,module,exports){
+},{}],148:[function(require,module,exports){
 /*
 Language: Objective-C
 Author: Valerii Hiora <valerii.hiora@gmail.com>
@@ -33855,7 +33955,7 @@ function objectivec(hljs) {
 
 module.exports = objectivec;
 
-},{}],148:[function(require,module,exports){
+},{}],149:[function(require,module,exports){
 /*
 Language: OCaml
 Author: Mehdi Dogguy <mehdi@dogguy.org>
@@ -33939,7 +34039,7 @@ function ocaml(hljs) {
 
 module.exports = ocaml;
 
-},{}],149:[function(require,module,exports){
+},{}],150:[function(require,module,exports){
 /*
 Language: OpenSCAD
 Author: Dan Panzarella <alsoelp@gmail.com>
@@ -34022,7 +34122,7 @@ function openscad(hljs) {
 
 module.exports = openscad;
 
-},{}],150:[function(require,module,exports){
+},{}],151:[function(require,module,exports){
 /*
 Language: Oxygene
 Author: Carlo Kok <ck@remobjects.com>
@@ -34125,7 +34225,7 @@ function oxygene(hljs) {
 
 module.exports = oxygene;
 
-},{}],151:[function(require,module,exports){
+},{}],152:[function(require,module,exports){
 /*
 Language: Parser3
 Requires: xml.js
@@ -34184,7 +34284,7 @@ function parser3(hljs) {
 
 module.exports = parser3;
 
-},{}],152:[function(require,module,exports){
+},{}],153:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -34701,7 +34801,7 @@ function perl(hljs) {
 
 module.exports = perl;
 
-},{}],153:[function(require,module,exports){
+},{}],154:[function(require,module,exports){
 /*
 Language: Packet Filter config
 Description: pf.conf — packet filter configuration file (OpenBSD)
@@ -34762,7 +34862,7 @@ function pf(hljs) {
 
 module.exports = pf;
 
-},{}],154:[function(require,module,exports){
+},{}],155:[function(require,module,exports){
 /*
 Language: PostgreSQL and PL/pgSQL
 Author: Egor Rogov (e.rogov@postgrespro.ru)
@@ -35394,7 +35494,7 @@ function pgsql(hljs) {
 
 module.exports = pgsql;
 
-},{}],155:[function(require,module,exports){
+},{}],156:[function(require,module,exports){
 /*
 Language: PHP Template
 Requires: xml.js, php.js
@@ -35450,7 +35550,7 @@ function phpTemplate(hljs) {
 
 module.exports = phpTemplate;
 
-},{}],156:[function(require,module,exports){
+},{}],157:[function(require,module,exports){
 /*
 Language: PHP
 Author: Victor Karamzin <Victor.Karamzin@enterra-inc.com>
@@ -35656,7 +35756,7 @@ function php(hljs) {
 
 module.exports = php;
 
-},{}],157:[function(require,module,exports){
+},{}],158:[function(require,module,exports){
 /*
 Language: Plain text
 Author: Egor Rogov (e.rogov@postgrespro.ru)
@@ -35677,7 +35777,7 @@ function plaintext(hljs) {
 
 module.exports = plaintext;
 
-},{}],158:[function(require,module,exports){
+},{}],159:[function(require,module,exports){
 /*
 Language: Pony
 Author: Joe Eli McIlvain <joe.eli.mac@gmail.com>
@@ -35768,7 +35868,7 @@ function pony(hljs) {
 
 module.exports = pony;
 
-},{}],159:[function(require,module,exports){
+},{}],160:[function(require,module,exports){
 /*
 Language: PowerShell
 Description: PowerShell is a task-based command-line shell and scripting language built on .NET.
@@ -36101,7 +36201,7 @@ function powershell(hljs) {
 
 module.exports = powershell;
 
-},{}],160:[function(require,module,exports){
+},{}],161:[function(require,module,exports){
 /*
 Language: Processing
 Description: Processing is a flexible software sketchbook and a language for learning how to code within the context of the visual arts.
@@ -36161,7 +36261,7 @@ function processing(hljs) {
 
 module.exports = processing;
 
-},{}],161:[function(require,module,exports){
+},{}],162:[function(require,module,exports){
 /*
 Language: Python profiler
 Description: Python profiler results
@@ -36206,7 +36306,7 @@ function profile(hljs) {
 
 module.exports = profile;
 
-},{}],162:[function(require,module,exports){
+},{}],163:[function(require,module,exports){
 /*
 Language: Prolog
 Description: Prolog is a general purpose logic programming language associated with artificial intelligence and computational linguistics.
@@ -36310,7 +36410,7 @@ function prolog(hljs) {
 
 module.exports = prolog;
 
-},{}],163:[function(require,module,exports){
+},{}],164:[function(require,module,exports){
 /*
 Language: .properties
 Contributors: Valentin Aitken <valentin@nalisbg.com>, Egor Rogov <e.rogov@postgrespro.ru>
@@ -36397,7 +36497,7 @@ function properties(hljs) {
 
 module.exports = properties;
 
-},{}],164:[function(require,module,exports){
+},{}],165:[function(require,module,exports){
 /*
 Language: Protocol Buffers
 Author: Dan Tao <daniel.tao@gmail.com>
@@ -36446,7 +36546,7 @@ function protobuf(hljs) {
 
 module.exports = protobuf;
 
-},{}],165:[function(require,module,exports){
+},{}],166:[function(require,module,exports){
 /*
 Language: Puppet
 Author: Jose Molina Colmenero <gaudy41@gmail.com>
@@ -36595,7 +36695,7 @@ function puppet(hljs) {
 
 module.exports = puppet;
 
-},{}],166:[function(require,module,exports){
+},{}],167:[function(require,module,exports){
 /*
 Language: PureBASIC
 Author: Tristano Ajmone <tajmone@gmail.com>
@@ -36698,7 +36798,7 @@ function purebasic(hljs) {
 
 module.exports = purebasic;
 
-},{}],167:[function(require,module,exports){
+},{}],168:[function(require,module,exports){
 /*
 Language: Python REPL
 Requires: python.js
@@ -36736,7 +36836,7 @@ function pythonRepl(hljs) {
 
 module.exports = pythonRepl;
 
-},{}],168:[function(require,module,exports){
+},{}],169:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -37184,7 +37284,7 @@ function python(hljs) {
 
 module.exports = python;
 
-},{}],169:[function(require,module,exports){
+},{}],170:[function(require,module,exports){
 /*
 Language: Q
 Description: Q is a vector-based functional paradigm programming language built into the kdb+ database.
@@ -37223,7 +37323,7 @@ function q(hljs) {
 
 module.exports = q;
 
-},{}],170:[function(require,module,exports){
+},{}],171:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -37450,7 +37550,7 @@ function qml(hljs) {
 
 module.exports = qml;
 
-},{}],171:[function(require,module,exports){
+},{}],172:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -37683,7 +37783,7 @@ function r(hljs) {
 
 module.exports = r;
 
-},{}],172:[function(require,module,exports){
+},{}],173:[function(require,module,exports){
 /*
 Language: ReasonML
 Description: Reason lets you write simple, fast and quality type safe code while leveraging both the JavaScript & OCaml ecosystems.
@@ -38006,7 +38106,7 @@ function reasonml(hljs) {
 
 module.exports = reasonml;
 
-},{}],173:[function(require,module,exports){
+},{}],174:[function(require,module,exports){
 /*
 Language: RenderMan RIB
 Author: Konstantin Evdokimenko <qewerty@gmail.com>
@@ -38045,7 +38145,7 @@ function rib(hljs) {
 
 module.exports = rib;
 
-},{}],174:[function(require,module,exports){
+},{}],175:[function(require,module,exports){
 /*
 Language: Roboconf
 Author: Vincent Zurczak <vzurczak@linagora.com>
@@ -38129,7 +38229,7 @@ function roboconf(hljs) {
 
 module.exports = roboconf;
 
-},{}],175:[function(require,module,exports){
+},{}],176:[function(require,module,exports){
 /*
 Language: Microtik RouterOS script
 Author: Ivan Dementev <ivan_div@mail.ru>
@@ -38303,7 +38403,7 @@ function routeros(hljs) {
 
 module.exports = routeros;
 
-},{}],176:[function(require,module,exports){
+},{}],177:[function(require,module,exports){
 /*
 Language: RenderMan RSL
 Author: Konstantin Evdokimenko <qewerty@gmail.com>
@@ -38354,7 +38454,7 @@ function rsl(hljs) {
 
 module.exports = rsl;
 
-},{}],177:[function(require,module,exports){
+},{}],178:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -38743,7 +38843,7 @@ function ruby(hljs) {
 
 module.exports = ruby;
 
-},{}],178:[function(require,module,exports){
+},{}],179:[function(require,module,exports){
 /*
 Language: Oracle Rules Language
 Author: Jason Jacobson <jason.a.jacobson@gmail.com>
@@ -38823,7 +38923,7 @@ function ruleslanguage(hljs) {
 
 module.exports = ruleslanguage;
 
-},{}],179:[function(require,module,exports){
+},{}],180:[function(require,module,exports){
 /*
 Language: Rust
 Author: Andrey Vlasovskikh <andrey.vlasovskikh@gmail.com>
@@ -38971,7 +39071,7 @@ function rust(hljs) {
 
 module.exports = rust;
 
-},{}],180:[function(require,module,exports){
+},{}],181:[function(require,module,exports){
 /*
 Language: SAS
 Author: Mauricio Caceres <mauricio.caceres.bravo@gmail.com>
@@ -39106,7 +39206,7 @@ function sas(hljs) {
 
 module.exports = sas;
 
-},{}],181:[function(require,module,exports){
+},{}],182:[function(require,module,exports){
 /*
 Language: Scala
 Category: functional
@@ -39248,7 +39348,7 @@ function scala(hljs) {
 
 module.exports = scala;
 
-},{}],182:[function(require,module,exports){
+},{}],183:[function(require,module,exports){
 /*
 Language: Scheme
 Description: Scheme is a programming language in the Lisp family.
@@ -39457,7 +39557,7 @@ function scheme(hljs) {
 
 module.exports = scheme;
 
-},{}],183:[function(require,module,exports){
+},{}],184:[function(require,module,exports){
 /*
 Language: Scilab
 Author: Sylvestre Ledru <sylvestre.ledru@scilab-enterprises.com>
@@ -39532,7 +39632,7 @@ function scilab(hljs) {
 
 module.exports = scilab;
 
-},{}],184:[function(require,module,exports){
+},{}],185:[function(require,module,exports){
 const MODES = (hljs) => {
   return {
     IMPORTANT: {
@@ -40079,7 +40179,7 @@ function scss(hljs) {
 
 module.exports = scss;
 
-},{}],185:[function(require,module,exports){
+},{}],186:[function(require,module,exports){
 /*
 Language: Shell Session
 Requires: bash.js
@@ -40111,7 +40211,7 @@ function shell(hljs) {
 
 module.exports = shell;
 
-},{}],186:[function(require,module,exports){
+},{}],187:[function(require,module,exports){
 /*
 Language: Smali
 Author: Dennis Titze <dennis.titze@gmail.com>
@@ -40248,7 +40348,7 @@ function smali(hljs) {
 
 module.exports = smali;
 
-},{}],187:[function(require,module,exports){
+},{}],188:[function(require,module,exports){
 /*
 Language: Smalltalk
 Description: Smalltalk is an object-oriented, dynamically typed reflective programming language.
@@ -40313,7 +40413,7 @@ function smalltalk(hljs) {
 
 module.exports = smalltalk;
 
-},{}],188:[function(require,module,exports){
+},{}],189:[function(require,module,exports){
 /*
 Language: SML (Standard ML)
 Author: Edwin Dalorzo <edwin@dalorzo.org>
@@ -40396,7 +40496,7 @@ function sml(hljs) {
 
 module.exports = sml;
 
-},{}],189:[function(require,module,exports){
+},{}],190:[function(require,module,exports){
 /*
 Language: SQF
 Author: Søren Enevoldsen <senevoldsen90@gmail.com>
@@ -40846,7 +40946,7 @@ function sqf(hljs) {
 
 module.exports = sqf;
 
-},{}],190:[function(require,module,exports){
+},{}],191:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -41547,7 +41647,7 @@ function sql(hljs) {
 
 module.exports = sql;
 
-},{}],191:[function(require,module,exports){
+},{}],192:[function(require,module,exports){
 /*
  Language: SQL More (mix of MySQL, Oracle, etc)
  Contributors: Nikolay Lisienko <info@neor.ru>, Heiko August <post@auge8472.de>, Travis Odom <travis.a.odom@gmail.com>, Vadimtro <vadimtro@yahoo.com>, Benjamin Auder <benjamin.auder@gmail.com>
@@ -41732,7 +41832,7 @@ function sql_more(hljs) {
 
 module.exports = sql_more;
 
-},{}],192:[function(require,module,exports){
+},{}],193:[function(require,module,exports){
 /*
 Language: Stan
 Description: The Stan probabilistic programming language
@@ -42282,7 +42382,7 @@ function stan(hljs) {
 
 module.exports = stan;
 
-},{}],193:[function(require,module,exports){
+},{}],194:[function(require,module,exports){
 /*
 Language: Stata
 Author: Brian Quistorff <bquistorff@gmail.com>
@@ -42344,7 +42444,7 @@ function stata(hljs) {
 
 module.exports = stata;
 
-},{}],194:[function(require,module,exports){
+},{}],195:[function(require,module,exports){
 /*
 Language: STEP Part 21
 Contributors: Adam Joseph Cook <adam.joseph.cook@gmail.com>
@@ -42412,7 +42512,7 @@ function step21(hljs) {
 
 module.exports = step21;
 
-},{}],195:[function(require,module,exports){
+},{}],196:[function(require,module,exports){
 const MODES = (hljs) => {
   return {
     IMPORTANT: {
@@ -43023,7 +43123,7 @@ function stylus(hljs) {
 
 module.exports = stylus;
 
-},{}],196:[function(require,module,exports){
+},{}],197:[function(require,module,exports){
 /*
 Language: SubUnit
 Author: Sergey Bronnikov <sergeyb@bronevichok.ru>
@@ -43076,7 +43176,7 @@ function subunit(hljs) {
 
 module.exports = subunit;
 
-},{}],197:[function(require,module,exports){
+},{}],198:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -43951,7 +44051,7 @@ function swift(hljs) {
 
 module.exports = swift;
 
-},{}],198:[function(require,module,exports){
+},{}],199:[function(require,module,exports){
 /*
 Language: Tagger Script
 Author: Philipp Wolfer <ph.wolfer@gmail.com>
@@ -44005,7 +44105,7 @@ function taggerscript(hljs) {
 
 module.exports = taggerscript;
 
-},{}],199:[function(require,module,exports){
+},{}],200:[function(require,module,exports){
 /*
 Language: Test Anything Protocol
 Description: TAP, the Test Anything Protocol, is a simple text-based interface between testing modules in a test harness.
@@ -44062,7 +44162,7 @@ function tap(hljs) {
 
 module.exports = tap;
 
-},{}],200:[function(require,module,exports){
+},{}],201:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -44179,7 +44279,7 @@ function tcl(hljs) {
 
 module.exports = tcl;
 
-},{}],201:[function(require,module,exports){
+},{}],202:[function(require,module,exports){
 /*
 Language: Thrift
 Author: Oleg Efimov <efimovov@gmail.com>
@@ -44232,7 +44332,7 @@ function thrift(hljs) {
 
 module.exports = thrift;
 
-},{}],202:[function(require,module,exports){
+},{}],203:[function(require,module,exports){
 /*
 Language: TP
 Author: Jay Strybis <jay.strybis@gmail.com>
@@ -44329,7 +44429,7 @@ function tp(hljs) {
 
 module.exports = tp;
 
-},{}],203:[function(require,module,exports){
+},{}],204:[function(require,module,exports){
 /*
 Language: Twig
 Requires: xml.js
@@ -44408,7 +44508,7 @@ function twig(hljs) {
 
 module.exports = twig;
 
-},{}],204:[function(require,module,exports){
+},{}],205:[function(require,module,exports){
 const IDENT_RE = '[A-Za-z$_][0-9A-Za-z$_]*';
 const KEYWORDS = [
   "as", // for exports
@@ -45107,7 +45207,7 @@ function typescript(hljs) {
 
 module.exports = typescript;
 
-},{}],205:[function(require,module,exports){
+},{}],206:[function(require,module,exports){
 /*
 Language: Vala
 Author: Antono Vasiljev <antono.vasiljev@gmail.com>
@@ -45170,7 +45270,7 @@ function vala(hljs) {
 
 module.exports = vala;
 
-},{}],206:[function(require,module,exports){
+},{}],207:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -45386,7 +45486,7 @@ function vbnet(hljs) {
 
 module.exports = vbnet;
 
-},{}],207:[function(require,module,exports){
+},{}],208:[function(require,module,exports){
 /*
 Language: VBScript in HTML
 Requires: xml.js, vbscript.js
@@ -45412,7 +45512,7 @@ function vbscriptHtml(hljs) {
 
 module.exports = vbscriptHtml;
 
-},{}],208:[function(require,module,exports){
+},{}],209:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -45523,7 +45623,7 @@ function vbscript(hljs) {
 
 module.exports = vbscript;
 
-},{}],209:[function(require,module,exports){
+},{}],210:[function(require,module,exports){
 /*
 Language: Verilog
 Author: Jon Evans <jon@craftyjon.com>
@@ -45656,7 +45756,7 @@ function verilog(hljs) {
 
 module.exports = verilog;
 
-},{}],210:[function(require,module,exports){
+},{}],211:[function(require,module,exports){
 /*
 Language: VHDL
 Author: Igor Kalnitsky <igor@kalnitsky.org>
@@ -45729,7 +45829,7 @@ function vhdl(hljs) {
 
 module.exports = vhdl;
 
-},{}],211:[function(require,module,exports){
+},{}],212:[function(require,module,exports){
 /*
 Language: Vim Script
 Author: Jun Yang <yangjvn@126.com>
@@ -45854,7 +45954,7 @@ function vim(hljs) {
 
 module.exports = vim;
 
-},{}],212:[function(require,module,exports){
+},{}],213:[function(require,module,exports){
 /*
 Language: Intel x86 Assembly
 Author: innocenat <innocenat@gmail.com>
@@ -46019,7 +46119,7 @@ function x86asm(hljs) {
 
 module.exports = x86asm;
 
-},{}],213:[function(require,module,exports){
+},{}],214:[function(require,module,exports){
 /*
 Language: XL
 Author: Christophe de Dinechin <christophe@taodyne.com>
@@ -46113,7 +46213,7 @@ function xl(hljs) {
 
 module.exports = xl;
 
-},{}],214:[function(require,module,exports){
+},{}],215:[function(require,module,exports){
 /**
  * @param {string} value
  * @returns {RegExp}
@@ -46402,7 +46502,7 @@ function xml(hljs) {
 
 module.exports = xml;
 
-},{}],215:[function(require,module,exports){
+},{}],216:[function(require,module,exports){
 /*
 Language: XQuery
 Author: Dirk Kirsten <dk@basex.org>
@@ -46601,7 +46701,7 @@ function xquery(_hljs) {
 
 module.exports = xquery;
 
-},{}],216:[function(require,module,exports){
+},{}],217:[function(require,module,exports){
 /*
 Language: YAML
 Description: Yet Another Markdown Language
@@ -46779,7 +46879,7 @@ function yaml(hljs) {
 
 module.exports = yaml;
 
-},{}],217:[function(require,module,exports){
+},{}],218:[function(require,module,exports){
 /*
  Language: Zephir
  Description: Zephir, an open source, high-level language designed to ease the creation and maintainability of extensions for PHP with a focus on type and memory safety.
@@ -46921,7 +47021,7 @@ function zephir(hljs) {
 
 module.exports = zephir;
 
-},{}],218:[function(require,module,exports){
+},{}],219:[function(require,module,exports){
 module.exports = attributeToProperty
 
 var transform = {
@@ -46942,7 +47042,7 @@ function attributeToProperty (h) {
   }
 }
 
-},{}],219:[function(require,module,exports){
+},{}],220:[function(require,module,exports){
 var attrToProp = require('hyperscript-attribute-to-property')
 
 var VAR = 0, TEXT = 1, OPEN = 2, CLOSE = 3, ATTR = 4
@@ -47239,7 +47339,7 @@ var closeRE = RegExp('^(' + [
 ].join('|') + ')(?:[\.#][a-zA-Z0-9\u007F-\uFFFF_:-]+)*$')
 function selfClosing (tag) { return closeRE.test(tag) }
 
-},{"hyperscript-attribute-to-property":218}],220:[function(require,module,exports){
+},{"hyperscript-attribute-to-property":219}],221:[function(require,module,exports){
 var inserted = {};
 
 module.exports = function (css, options) {
@@ -47263,37 +47363,860 @@ module.exports = function (css, options) {
     }
 };
 
-},{}],221:[function(require,module,exports){
+},{}],222:[function(require,module,exports){
+(function (process){(function (){
+// 'path' module extracted from Node.js v8.11.1 (only the posix part)
+// transplited with Babel
+
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+'use strict';
+
+function assertPath(path) {
+  if (typeof path !== 'string') {
+    throw new TypeError('Path must be a string. Received ' + JSON.stringify(path));
+  }
+}
+
+// Resolves . and .. elements in a path with directory names
+function normalizeStringPosix(path, allowAboveRoot) {
+  var res = '';
+  var lastSegmentLength = 0;
+  var lastSlash = -1;
+  var dots = 0;
+  var code;
+  for (var i = 0; i <= path.length; ++i) {
+    if (i < path.length)
+      code = path.charCodeAt(i);
+    else if (code === 47 /*/*/)
+      break;
+    else
+      code = 47 /*/*/;
+    if (code === 47 /*/*/) {
+      if (lastSlash === i - 1 || dots === 1) {
+        // NOOP
+      } else if (lastSlash !== i - 1 && dots === 2) {
+        if (res.length < 2 || lastSegmentLength !== 2 || res.charCodeAt(res.length - 1) !== 46 /*.*/ || res.charCodeAt(res.length - 2) !== 46 /*.*/) {
+          if (res.length > 2) {
+            var lastSlashIndex = res.lastIndexOf('/');
+            if (lastSlashIndex !== res.length - 1) {
+              if (lastSlashIndex === -1) {
+                res = '';
+                lastSegmentLength = 0;
+              } else {
+                res = res.slice(0, lastSlashIndex);
+                lastSegmentLength = res.length - 1 - res.lastIndexOf('/');
+              }
+              lastSlash = i;
+              dots = 0;
+              continue;
+            }
+          } else if (res.length === 2 || res.length === 1) {
+            res = '';
+            lastSegmentLength = 0;
+            lastSlash = i;
+            dots = 0;
+            continue;
+          }
+        }
+        if (allowAboveRoot) {
+          if (res.length > 0)
+            res += '/..';
+          else
+            res = '..';
+          lastSegmentLength = 2;
+        }
+      } else {
+        if (res.length > 0)
+          res += '/' + path.slice(lastSlash + 1, i);
+        else
+          res = path.slice(lastSlash + 1, i);
+        lastSegmentLength = i - lastSlash - 1;
+      }
+      lastSlash = i;
+      dots = 0;
+    } else if (code === 46 /*.*/ && dots !== -1) {
+      ++dots;
+    } else {
+      dots = -1;
+    }
+  }
+  return res;
+}
+
+function _format(sep, pathObject) {
+  var dir = pathObject.dir || pathObject.root;
+  var base = pathObject.base || (pathObject.name || '') + (pathObject.ext || '');
+  if (!dir) {
+    return base;
+  }
+  if (dir === pathObject.root) {
+    return dir + base;
+  }
+  return dir + sep + base;
+}
+
+var posix = {
+  // path.resolve([from ...], to)
+  resolve: function resolve() {
+    var resolvedPath = '';
+    var resolvedAbsolute = false;
+    var cwd;
+
+    for (var i = arguments.length - 1; i >= -1 && !resolvedAbsolute; i--) {
+      var path;
+      if (i >= 0)
+        path = arguments[i];
+      else {
+        if (cwd === undefined)
+          cwd = process.cwd();
+        path = cwd;
+      }
+
+      assertPath(path);
+
+      // Skip empty entries
+      if (path.length === 0) {
+        continue;
+      }
+
+      resolvedPath = path + '/' + resolvedPath;
+      resolvedAbsolute = path.charCodeAt(0) === 47 /*/*/;
+    }
+
+    // At this point the path should be resolved to a full absolute path, but
+    // handle relative paths to be safe (might happen when process.cwd() fails)
+
+    // Normalize the path
+    resolvedPath = normalizeStringPosix(resolvedPath, !resolvedAbsolute);
+
+    if (resolvedAbsolute) {
+      if (resolvedPath.length > 0)
+        return '/' + resolvedPath;
+      else
+        return '/';
+    } else if (resolvedPath.length > 0) {
+      return resolvedPath;
+    } else {
+      return '.';
+    }
+  },
+
+  normalize: function normalize(path) {
+    assertPath(path);
+
+    if (path.length === 0) return '.';
+
+    var isAbsolute = path.charCodeAt(0) === 47 /*/*/;
+    var trailingSeparator = path.charCodeAt(path.length - 1) === 47 /*/*/;
+
+    // Normalize the path
+    path = normalizeStringPosix(path, !isAbsolute);
+
+    if (path.length === 0 && !isAbsolute) path = '.';
+    if (path.length > 0 && trailingSeparator) path += '/';
+
+    if (isAbsolute) return '/' + path;
+    return path;
+  },
+
+  isAbsolute: function isAbsolute(path) {
+    assertPath(path);
+    return path.length > 0 && path.charCodeAt(0) === 47 /*/*/;
+  },
+
+  join: function join() {
+    if (arguments.length === 0)
+      return '.';
+    var joined;
+    for (var i = 0; i < arguments.length; ++i) {
+      var arg = arguments[i];
+      assertPath(arg);
+      if (arg.length > 0) {
+        if (joined === undefined)
+          joined = arg;
+        else
+          joined += '/' + arg;
+      }
+    }
+    if (joined === undefined)
+      return '.';
+    return posix.normalize(joined);
+  },
+
+  relative: function relative(from, to) {
+    assertPath(from);
+    assertPath(to);
+
+    if (from === to) return '';
+
+    from = posix.resolve(from);
+    to = posix.resolve(to);
+
+    if (from === to) return '';
+
+    // Trim any leading backslashes
+    var fromStart = 1;
+    for (; fromStart < from.length; ++fromStart) {
+      if (from.charCodeAt(fromStart) !== 47 /*/*/)
+        break;
+    }
+    var fromEnd = from.length;
+    var fromLen = fromEnd - fromStart;
+
+    // Trim any leading backslashes
+    var toStart = 1;
+    for (; toStart < to.length; ++toStart) {
+      if (to.charCodeAt(toStart) !== 47 /*/*/)
+        break;
+    }
+    var toEnd = to.length;
+    var toLen = toEnd - toStart;
+
+    // Compare paths to find the longest common path from root
+    var length = fromLen < toLen ? fromLen : toLen;
+    var lastCommonSep = -1;
+    var i = 0;
+    for (; i <= length; ++i) {
+      if (i === length) {
+        if (toLen > length) {
+          if (to.charCodeAt(toStart + i) === 47 /*/*/) {
+            // We get here if `from` is the exact base path for `to`.
+            // For example: from='/foo/bar'; to='/foo/bar/baz'
+            return to.slice(toStart + i + 1);
+          } else if (i === 0) {
+            // We get here if `from` is the root
+            // For example: from='/'; to='/foo'
+            return to.slice(toStart + i);
+          }
+        } else if (fromLen > length) {
+          if (from.charCodeAt(fromStart + i) === 47 /*/*/) {
+            // We get here if `to` is the exact base path for `from`.
+            // For example: from='/foo/bar/baz'; to='/foo/bar'
+            lastCommonSep = i;
+          } else if (i === 0) {
+            // We get here if `to` is the root.
+            // For example: from='/foo'; to='/'
+            lastCommonSep = 0;
+          }
+        }
+        break;
+      }
+      var fromCode = from.charCodeAt(fromStart + i);
+      var toCode = to.charCodeAt(toStart + i);
+      if (fromCode !== toCode)
+        break;
+      else if (fromCode === 47 /*/*/)
+        lastCommonSep = i;
+    }
+
+    var out = '';
+    // Generate the relative path based on the path difference between `to`
+    // and `from`
+    for (i = fromStart + lastCommonSep + 1; i <= fromEnd; ++i) {
+      if (i === fromEnd || from.charCodeAt(i) === 47 /*/*/) {
+        if (out.length === 0)
+          out += '..';
+        else
+          out += '/..';
+      }
+    }
+
+    // Lastly, append the rest of the destination (`to`) path that comes after
+    // the common path parts
+    if (out.length > 0)
+      return out + to.slice(toStart + lastCommonSep);
+    else {
+      toStart += lastCommonSep;
+      if (to.charCodeAt(toStart) === 47 /*/*/)
+        ++toStart;
+      return to.slice(toStart);
+    }
+  },
+
+  _makeLong: function _makeLong(path) {
+    return path;
+  },
+
+  dirname: function dirname(path) {
+    assertPath(path);
+    if (path.length === 0) return '.';
+    var code = path.charCodeAt(0);
+    var hasRoot = code === 47 /*/*/;
+    var end = -1;
+    var matchedSlash = true;
+    for (var i = path.length - 1; i >= 1; --i) {
+      code = path.charCodeAt(i);
+      if (code === 47 /*/*/) {
+          if (!matchedSlash) {
+            end = i;
+            break;
+          }
+        } else {
+        // We saw the first non-path separator
+        matchedSlash = false;
+      }
+    }
+
+    if (end === -1) return hasRoot ? '/' : '.';
+    if (hasRoot && end === 1) return '//';
+    return path.slice(0, end);
+  },
+
+  basename: function basename(path, ext) {
+    if (ext !== undefined && typeof ext !== 'string') throw new TypeError('"ext" argument must be a string');
+    assertPath(path);
+
+    var start = 0;
+    var end = -1;
+    var matchedSlash = true;
+    var i;
+
+    if (ext !== undefined && ext.length > 0 && ext.length <= path.length) {
+      if (ext.length === path.length && ext === path) return '';
+      var extIdx = ext.length - 1;
+      var firstNonSlashEnd = -1;
+      for (i = path.length - 1; i >= 0; --i) {
+        var code = path.charCodeAt(i);
+        if (code === 47 /*/*/) {
+            // If we reached a path separator that was not part of a set of path
+            // separators at the end of the string, stop now
+            if (!matchedSlash) {
+              start = i + 1;
+              break;
+            }
+          } else {
+          if (firstNonSlashEnd === -1) {
+            // We saw the first non-path separator, remember this index in case
+            // we need it if the extension ends up not matching
+            matchedSlash = false;
+            firstNonSlashEnd = i + 1;
+          }
+          if (extIdx >= 0) {
+            // Try to match the explicit extension
+            if (code === ext.charCodeAt(extIdx)) {
+              if (--extIdx === -1) {
+                // We matched the extension, so mark this as the end of our path
+                // component
+                end = i;
+              }
+            } else {
+              // Extension does not match, so our result is the entire path
+              // component
+              extIdx = -1;
+              end = firstNonSlashEnd;
+            }
+          }
+        }
+      }
+
+      if (start === end) end = firstNonSlashEnd;else if (end === -1) end = path.length;
+      return path.slice(start, end);
+    } else {
+      for (i = path.length - 1; i >= 0; --i) {
+        if (path.charCodeAt(i) === 47 /*/*/) {
+            // If we reached a path separator that was not part of a set of path
+            // separators at the end of the string, stop now
+            if (!matchedSlash) {
+              start = i + 1;
+              break;
+            }
+          } else if (end === -1) {
+          // We saw the first non-path separator, mark this as the end of our
+          // path component
+          matchedSlash = false;
+          end = i + 1;
+        }
+      }
+
+      if (end === -1) return '';
+      return path.slice(start, end);
+    }
+  },
+
+  extname: function extname(path) {
+    assertPath(path);
+    var startDot = -1;
+    var startPart = 0;
+    var end = -1;
+    var matchedSlash = true;
+    // Track the state of characters (if any) we see before our first dot and
+    // after any path separator we find
+    var preDotState = 0;
+    for (var i = path.length - 1; i >= 0; --i) {
+      var code = path.charCodeAt(i);
+      if (code === 47 /*/*/) {
+          // If we reached a path separator that was not part of a set of path
+          // separators at the end of the string, stop now
+          if (!matchedSlash) {
+            startPart = i + 1;
+            break;
+          }
+          continue;
+        }
+      if (end === -1) {
+        // We saw the first non-path separator, mark this as the end of our
+        // extension
+        matchedSlash = false;
+        end = i + 1;
+      }
+      if (code === 46 /*.*/) {
+          // If this is our first dot, mark it as the start of our extension
+          if (startDot === -1)
+            startDot = i;
+          else if (preDotState !== 1)
+            preDotState = 1;
+      } else if (startDot !== -1) {
+        // We saw a non-dot and non-path separator before our dot, so we should
+        // have a good chance at having a non-empty extension
+        preDotState = -1;
+      }
+    }
+
+    if (startDot === -1 || end === -1 ||
+        // We saw a non-dot character immediately before the dot
+        preDotState === 0 ||
+        // The (right-most) trimmed path component is exactly '..'
+        preDotState === 1 && startDot === end - 1 && startDot === startPart + 1) {
+      return '';
+    }
+    return path.slice(startDot, end);
+  },
+
+  format: function format(pathObject) {
+    if (pathObject === null || typeof pathObject !== 'object') {
+      throw new TypeError('The "pathObject" argument must be of type Object. Received type ' + typeof pathObject);
+    }
+    return _format('/', pathObject);
+  },
+
+  parse: function parse(path) {
+    assertPath(path);
+
+    var ret = { root: '', dir: '', base: '', ext: '', name: '' };
+    if (path.length === 0) return ret;
+    var code = path.charCodeAt(0);
+    var isAbsolute = code === 47 /*/*/;
+    var start;
+    if (isAbsolute) {
+      ret.root = '/';
+      start = 1;
+    } else {
+      start = 0;
+    }
+    var startDot = -1;
+    var startPart = 0;
+    var end = -1;
+    var matchedSlash = true;
+    var i = path.length - 1;
+
+    // Track the state of characters (if any) we see before our first dot and
+    // after any path separator we find
+    var preDotState = 0;
+
+    // Get non-dir info
+    for (; i >= start; --i) {
+      code = path.charCodeAt(i);
+      if (code === 47 /*/*/) {
+          // If we reached a path separator that was not part of a set of path
+          // separators at the end of the string, stop now
+          if (!matchedSlash) {
+            startPart = i + 1;
+            break;
+          }
+          continue;
+        }
+      if (end === -1) {
+        // We saw the first non-path separator, mark this as the end of our
+        // extension
+        matchedSlash = false;
+        end = i + 1;
+      }
+      if (code === 46 /*.*/) {
+          // If this is our first dot, mark it as the start of our extension
+          if (startDot === -1) startDot = i;else if (preDotState !== 1) preDotState = 1;
+        } else if (startDot !== -1) {
+        // We saw a non-dot and non-path separator before our dot, so we should
+        // have a good chance at having a non-empty extension
+        preDotState = -1;
+      }
+    }
+
+    if (startDot === -1 || end === -1 ||
+    // We saw a non-dot character immediately before the dot
+    preDotState === 0 ||
+    // The (right-most) trimmed path component is exactly '..'
+    preDotState === 1 && startDot === end - 1 && startDot === startPart + 1) {
+      if (end !== -1) {
+        if (startPart === 0 && isAbsolute) ret.base = ret.name = path.slice(1, end);else ret.base = ret.name = path.slice(startPart, end);
+      }
+    } else {
+      if (startPart === 0 && isAbsolute) {
+        ret.name = path.slice(1, startDot);
+        ret.base = path.slice(1, end);
+      } else {
+        ret.name = path.slice(startPart, startDot);
+        ret.base = path.slice(startPart, end);
+      }
+      ret.ext = path.slice(startDot, end);
+    }
+
+    if (startPart > 0) ret.dir = path.slice(0, startPart - 1);else if (isAbsolute) ret.dir = '/';
+
+    return ret;
+  },
+
+  sep: '/',
+  delimiter: ':',
+  win32: null,
+  posix: null
+};
+
+posix.posix = posix;
+
+module.exports = posix;
+
+}).call(this)}).call(this,require('_process'))
+},{"_process":223}],223:[function(require,module,exports){
+// shim for using process in browser
+var process = module.exports = {};
+
+// cached from whatever global is present so that test runners that stub it
+// don't break things.  But we need to wrap it in a try catch in case it is
+// wrapped in strict mode code which doesn't define any globals.  It's inside a
+// function because try/catches deoptimize in certain engines.
+
+var cachedSetTimeout;
+var cachedClearTimeout;
+
+function defaultSetTimout() {
+    throw new Error('setTimeout has not been defined');
+}
+function defaultClearTimeout () {
+    throw new Error('clearTimeout has not been defined');
+}
+(function () {
+    try {
+        if (typeof setTimeout === 'function') {
+            cachedSetTimeout = setTimeout;
+        } else {
+            cachedSetTimeout = defaultSetTimout;
+        }
+    } catch (e) {
+        cachedSetTimeout = defaultSetTimout;
+    }
+    try {
+        if (typeof clearTimeout === 'function') {
+            cachedClearTimeout = clearTimeout;
+        } else {
+            cachedClearTimeout = defaultClearTimeout;
+        }
+    } catch (e) {
+        cachedClearTimeout = defaultClearTimeout;
+    }
+} ())
+function runTimeout(fun) {
+    if (cachedSetTimeout === setTimeout) {
+        //normal enviroments in sane situations
+        return setTimeout(fun, 0);
+    }
+    // if setTimeout wasn't available but was latter defined
+    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
+        cachedSetTimeout = setTimeout;
+        return setTimeout(fun, 0);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedSetTimeout(fun, 0);
+    } catch(e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
+            return cachedSetTimeout.call(null, fun, 0);
+        } catch(e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
+            return cachedSetTimeout.call(this, fun, 0);
+        }
+    }
+
+
+}
+function runClearTimeout(marker) {
+    if (cachedClearTimeout === clearTimeout) {
+        //normal enviroments in sane situations
+        return clearTimeout(marker);
+    }
+    // if clearTimeout wasn't available but was latter defined
+    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
+        cachedClearTimeout = clearTimeout;
+        return clearTimeout(marker);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedClearTimeout(marker);
+    } catch (e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
+            return cachedClearTimeout.call(null, marker);
+        } catch (e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
+            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
+            return cachedClearTimeout.call(this, marker);
+        }
+    }
+
+
+
+}
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    if (!draining || !currentQueue) {
+        return;
+    }
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
+
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = runTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    runClearTimeout(timeout);
+}
+
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        runTimeout(drainQueue);
+    }
+};
+
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+process.prependListener = noop;
+process.prependOnceListener = noop;
+
+process.listeners = function (name) { return [] }
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
+
+},{}],224:[function(require,module,exports){
 const bel = require('bel')
 const csjs = require('csjs-inject')
 
+module.exports = domlog
+
+let count = 1
+
+function domlog (message) {
+    const { page = 'demo', from, flow, type, body, action, filename, line } = message
+    const log = bel`
+    <div class=${css.log} role="log">
+        <div class=${css.badge}>${count}</div>
+        <div class="${css.output} ${type === 'error' ? css.error : '' }">
+            <span class=${css.page}>${page}</span> 
+            <span class=${css.flow}>${flow}</span>
+            <span class=${css.from}>${from}</span>
+            <span class=${css.type}>${type}</span>
+            <span class=${css.info}>${typeof body === 'string' ? body : JSON.stringify(body, ["swarm", "feeds", "links"], 3)}</span>
+        </div>
+        <div class=${css['code-line']}>${filename}:${line}</div>
+    </div>`
+    count++
+    return log
+    
+}
+const css = csjs`
+.log {
+    display: grid;
+    grid-template-rows: auto;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    padding: 2px 12px 0 0;
+    border-bottom: 1px solid #333;
+}
+.log:last-child, .log:last-child .page, .log:last-child .flow, .log:last-child .type {
+    color: #FFF500;
+    font-weight: bold;
+}
+.output {}
+.badge {
+    background-color: #333;
+    padding: 6px;
+    margin-right: 10px;
+    font-size: 14px;
+    display: inline-block;
+}
+.code-line {}
+.error {
+    
+}
+.error .type {
+    padding: 2px 6px;
+    color: white;
+    background-color: #AC0000;
+    border-radius: 2px;
+}
+.error .info {
+    color: #FF2626;
+}
+.page {
+    display: inline-block;
+    color: rgba(255,255,255,.75);
+    background-color: #2A2E30;
+    padding: 4px 6px;
+    border-radius: 4px;
+}
+.flow {
+    color: #1DA5FF;
+}
+.from {
+    color: #fff;
+}
+.type {
+    color: #FFB14A;
+}
+.info {}
+`
+},{"bel":5,"csjs-inject":8}],225:[function(require,module,exports){
+(function (__filename){(function (){
+const bel = require('bel')
+const csjs = require('csjs-inject')
+const path = require('path')
+const filename = path.basename(__filename)
+const hljs = require('highlight.js')
+
 module.exports = snippet
 
-function snippet({content, type}) {
-    const div = document.createElement('div')
-    div.innerHTML = content
+function snippet(option, protocol) {
+    const widget = 'ui-highlight'
+    const {page, flow, content = '', lang, theme} = option
+    const send2Parent = protocol( receive )
+    send2Parent({page, from: lang, flow: flow ? `${flow}/${widget}` : widget, type: 'init', filename, line: 11})
 
-    const snippet = bel`<code class="language-${type} hljs ${css.snippet}"></code>`
-    const element = bel`<div class=${css.code}><pre>${snippet}</pre></div>`
-    snippet.append(div)
+    function ui_element(css) {
+        hljs.highlightAll()
+        const snippet = hljs.highlightAuto(content).value
+        const code = bel`<code class="${css.code} language-${lang} hljs"></code>`
+        code.innerHTML = snippet
+        const element = bel`<div class=${css.snippet}><pre>${code}</pre></div>`
+        return element
+    }
 
-    return element
+    /*************************
+    * ------ Receivers -------
+    *************************/
+    function receive(message) {
+        const { type } = message
+        console.log('message received from main component:', message)
+    }
+
+    if (theme) {
+        var {
+            fontFamily, fontWeight, fontSize, lineHeight, 
+            borderWidth, borderColor, borderStyle, borderRadius, 
+            padding, margin
+        } = theme
+    }
+
+    const style = csjs`
+    .snippet {}
+    .code {
+        font-family: ${fontFamily ? fontFamily : 'inherit'};
+        font-weight: ${fontWeight ? fontWeight : '300'} !important;
+        font-size: ${fontSize ? fontSize : '1.3rem'};
+        line-height: ${lineHeight ? lineHeight : '2rem'};
+        border-width: ${borderWidth ? borderWidth : '0'};
+        border-color: ${borderColor ? borderColor : 'unset'};
+        border-style: ${borderStyle ? borderStyle : 'unset'};
+        border-radius: ${borderRadius ? borderRadius : '0'};
+        padding: ${padding ? padding : '8px 12px'} !important;
+        margin: ${margin ? margin : 'inherit'};
+    }
+    `
+    return ui_element(style)
 }
-
-const css = csjs`
-.code {}
-.snippet {
-    font-family: var(--highlight-font-family);
-    font-size: var(--highlight-font-size);
-    font-weight: var(--highlight-font-weight) !important;
-    padding: var(--highlight-padding) !important;
-    border-radius: var(--highlight-radius);
-    line-height: var(--highlight-line-height);
-    border-width: var(--highlight-border-width);
-    border-color: var(--highlight-border-color);
-    border-style: solid;
-}
-`
-
-
-},{"bel":5,"csjs-inject":8}]},{},[1]);
+}).call(this)}).call(this,"/src/index.js")
+},{"bel":5,"csjs-inject":8,"highlight.js":27,"path":222}]},{},[1]);
