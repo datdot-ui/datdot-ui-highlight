@@ -32,6 +32,7 @@
   "dependencies": {
     "bel": "^6.0.0",
     "csjs-inject": "^1.0.1",
+    "datdot-ui-button": "github:fionataeyang/datdot-ui-button",
     "datdot-ui-title": "github:fionataeyang/datdot-ui-title",
     "highlight.js": "^10.7.2",
     "ui-domlog": "github:fionataeyang/ui-domlog"

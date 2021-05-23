@@ -1,0 +1,6 @@
+{
+    "padding": "0.8rem 1.2rem",
+    "color": "hsl(0, 0%, 100%)",
+    "bgColor": "hsl(29, 100%, 50%)",
+    "rounder": "0px 0px 0px 8px"
+}

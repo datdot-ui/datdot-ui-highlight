@@ -9,24 +9,39 @@ module.exports = snippet
 function snippet(option, protocol) {
     const widget = 'ui-highlight'
     const {page, flow, content = '', lang, theme} = option
-    const send2Parent = protocol( receive )
-    send2Parent({page, from: lang, flow: flow ? `${flow}/${widget}` : widget, type: 'init', filename, line: 11})
 
     function ui_element(css) {
+        const send2Parent = protocol( receive )
+        send2Parent({page, from: lang, flow: flow ? `${flow}/${widget}` : widget, type: 'init', filename, line: 15})
         hljs.highlightAll()
         const snippet = hljs.highlightAuto(content).value
         const code = bel`<code class="${css.code} language-${lang} hljs"></code>`
         code.innerHTML = snippet
         const element = bel`<div class=${css.snippet}><pre>${code}</pre></div>`
         return element
-    }
 
-    /*************************
-    * ------ Receivers -------
-    *************************/
-    function receive(message) {
-        const { type } = message
-        console.log('message received from main component:', message)
+         /*************************
+        * ------ Actions -------
+        *************************/
+        function handleCopyToClipboard() {
+            let range = document.createRange()
+            console.log(code );
+            range.selectNode(code)
+            window.getSelection().removeAllRanges()
+            window.getSelection().addRange(range)
+            document.execCommand('copy')
+            window.getSelection().removeAllRanges()
+            send2Parent({page, from: lang, flow: flow ? `${flow}/${widget}` : widget, type: 'copied', filename, line: 33})
+        }
+
+        /*************************
+        * ------ Receivers -------
+        *************************/
+        function receive(message) {
+            const { type } = message
+            console.log('message received from main component:', message)
+            if (type === 'copy') handleCopyToClipboard()
+        }
     }
 
     if (theme) {

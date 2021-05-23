@@ -6,7 +6,9 @@ const domlog = require('ui-domlog')
 const snippet = require('..')
 const title = require('datdot-ui-title')
 const theme = require('./theme.json')
+const button = require('datdot-ui-button')
 const main_highlight = require('./main_highlight.json')
+const copy_button = require('./copy_button.json')
 
 function demoComponent() {
     let recipients = []
@@ -20,7 +22,7 @@ function demoComponent() {
     selector.onchange = handleColorChange
 
     let style = theme['shades-of-purple']
-    const htmlCode =  '<span>Hello World!</span>'
+    const htmlCode =  '<span>Hello world!</span>'
     const jsCode = `const name = "John Doe"
 let age = "33"
 function greeting (name) {
@@ -38,16 +40,25 @@ function person (name, age, job) {
     <div class=${css.content}>
         <header><label>Color:</label> ${selector}</header>
         <section>
-            ${title({page: 'demo', name: 'html', content: 'XML'})}
-            ${snippet( {content: htmlCode, lang: 'xml'}, protocol('html') )}
+            ${title({page: 'demo', name: 'html', content: 'HTML'})}
+            <div class="${css['code-highlight']}">
+                ${button({page: 'demo', flow: 'highlight', name: 'copy', content: 'Copy', theme: copy_button }, protocol('copy-html'))}
+                ${snippet( {content: htmlCode, lang: 'html'}, protocol('html') )}
+            </div>
         </section>
         <section>
             ${title({page: 'demo', name: 'javascript', content: 'Javascript', theme: {color: 'hsl(212, 100%, 50%)'}})}
-            ${snippet( {content: jsCode, lang: 'javascript', theme: main_highlight }, protocol('javascript') )}
+            <div class="${css['code-highlight']}">
+                ${button({page: 'demo', flow: 'highlight', name: 'copy', content: 'Copy', theme: copy_button}, protocol('copy-javascript'))}
+                ${snippet( {content: jsCode, lang: 'javascript', theme: main_highlight }, protocol('javascript') )}
+            </div>
         </section>
         <section>
             ${title( {page: 'demo', name: 'css', content: 'CSS', theme: {color: 'hsl(323,100%, 50%)'} })}
-            ${snippet( {content: cssCode, lang: 'css', theme: main_highlight }, protocol('css') )}
+            <div class="${css['code-highlight']}">
+                ${button({page: 'demo', flow: 'highlight', name: 'copy', content: 'Copy', theme: copy_button}, protocol('copy-css'))}
+                ${snippet( {content: cssCode, lang: 'css', theme: main_highlight }, protocol('css') )}
+            </div>
         </section>
     </div>
     `
@@ -89,7 +100,10 @@ function person (name, age, job) {
     function receive (message) {
         const { page, from, flow, type, body } = message
         showLog(message)
-        if (type === 'init') return showLog({page, from, flow, type: 'ready', body, filename, line: 92})
+        if (type === 'init') return showLog({page, from, flow, type: 'ready', body, filename, line: 94})
+        if (type === 'click') {
+            if ((/html|javascript|css/).test(from)) recipients[ from.split('-')[1] ]({page, from: from.split('-')[1], type: 'copy'})
+        }
     }
 
     /*************************
@@ -180,6 +194,14 @@ body {
 }
 header {
     padding-bottom: 20px;
+}
+.code-highlight {
+    position: relative;
+}
+.code-highlight button[data-name="copy"] {
+    position: absolute;
+    top: 0;
+    right: 0;
 }
 `
 
