@@ -42,21 +42,21 @@ function person (name, age, job) {
         <section>
             ${title({page: 'demo', name: 'html', content: 'HTML'})}
             <div class="${css['code-highlight']}">
-                ${button({page: 'demo', flow: 'highlight', name: 'copy', content: 'Copy', theme: copy_button }, protocol('copy-html'))}
+                ${button({page: 'demo', flow: 'highlight', name: 'copy-html', content: 'Copy', theme: copy_button }, protocol('copy-html'))}
                 ${snippet( {content: htmlCode, lang: 'html'}, protocol('html') )}
             </div>
         </section>
         <section>
             ${title({page: 'demo', name: 'javascript', content: 'Javascript', theme: {color: 'hsl(212, 100%, 50%)'}})}
             <div class="${css['code-highlight']}">
-                ${button({page: 'demo', flow: 'highlight', name: 'copy', content: 'Copy', theme: copy_button}, protocol('copy-javascript'))}
+                ${button({page: 'demo', flow: 'highlight', name: 'copy-javascript', content: 'Copy', theme: copy_button}, protocol('copy-javascript'))}
                 ${snippet( {content: jsCode, lang: 'javascript', theme: main_highlight }, protocol('javascript') )}
             </div>
         </section>
         <section>
             ${title( {page: 'demo', name: 'css', content: 'CSS', theme: {color: 'hsl(323,100%, 50%)'} })}
             <div class="${css['code-highlight']}">
-                ${button({page: 'demo', flow: 'highlight', name: 'copy', content: 'Copy', theme: copy_button}, protocol('copy-css'))}
+                ${button({page: 'demo', flow: 'highlight', name: 'copy-css', content: 'Copy', theme: copy_button}, protocol('copy-javascript'))}
                 ${snippet( {content: cssCode, lang: 'css', theme: main_highlight }, protocol('css') )}
             </div>
         </section>
@@ -102,8 +102,9 @@ function person (name, age, job) {
         showLog(message)
         if (type === 'init') return showLog({page, from, flow, type: 'ready', body, filename, line: 94})
         if (type === 'click') {
-            if ((/html|javascript|css/).test(from)) recipients[ from.split('-')[1] ]({page, from: from.split('-')[1], type: 'copy'})
+            if ((/html|javascript|css/).test(from)) return recipients[ from.split('-')[1] ]({page, from: from.split('-')[1], type: 'copy'})
         }
+        if (type === 'copy') return showLog({page, from, flow, type: 'copied', body, filename, line: 107})
     }
 
     /*************************
@@ -198,7 +199,7 @@ header {
 .code-highlight {
     position: relative;
 }
-.code-highlight button[data-name="copy"] {
+.code-highlight button[data-name*="copy"] {
     position: absolute;
     top: 0;
     right: 0;

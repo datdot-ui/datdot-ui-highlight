@@ -23,15 +23,15 @@ function snippet(option, protocol) {
          /*************************
         * ------ Actions -------
         *************************/
-        function handleCopyToClipboard() {
+        function handleCopyToClipboard(message) {
+            const {page, from, flow} = message
             let range = document.createRange()
-            console.log(code );
             range.selectNode(code)
             window.getSelection().removeAllRanges()
             window.getSelection().addRange(range)
             document.execCommand('copy')
             window.getSelection().removeAllRanges()
-            send2Parent({page, from: lang, flow: flow ? `${flow}/${widget}` : widget, type: 'copied', filename, line: 33})
+            return send2Parent({page, from, flow: flow ? `${flow}/${widget}` : widget, type: 'copy', filename, line: 34})
         }
 
         /*************************
@@ -39,8 +39,8 @@ function snippet(option, protocol) {
         *************************/
         function receive(message) {
             const { type } = message
-            console.log('message received from main component:', message)
-            if (type === 'copy') handleCopyToClipboard()
+            // console.log('message received from main component:', message)
+            if (type === 'copy') handleCopyToClipboard(message)
         }
     }
 
